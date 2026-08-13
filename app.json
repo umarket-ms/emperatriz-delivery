@@ -19,14 +19,14 @@
     "newArchEnabled": true,
     "extra": {
       "apiUrl": {
-        "EXPO_PUBLIC_API_URL_PROD": "https://api.tiendasdominicanas.com.do",
+        "EXPO_PUBLIC_API_URL_PROD": "https://api.tiendasdominicanas.com.do:9943",
         "EXPO_PUBLIC_API_URL_DEV_IOS": "http://localhost:80",
         "EXPO_PUBLIC_API_URL_DEV_ANDROID": "http://192.168.100.18:5000",
         "EXPO_PUBLIC_API_URL_DEFAULT": "http://192.168.100.18:5000"
       },
       "socketUrl": {
         "development": "http://192.168.100.18:5000",
-        "production": "https://api.tiendasdominicanas.com.do"
+        "production": "https://api.tiendasdominicanas.com.do:9943"
       },
       "router": {
         "root": "./app"
