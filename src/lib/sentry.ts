@@ -6,7 +6,7 @@ const sentryDsn = Constants.expoConfig?.extra?.SENTRY_DSN;
 if (__DEV__ === false && sentryDsn) {
     Sentry.init({
         dsn: sentryDsn,
-        environment: 'production',
-        tracesSampleRate: 0.1,
+        tracesSampleRate: 0.01,
+        autoSessionTracking: false,
     });
 }
