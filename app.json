@@ -28,7 +28,7 @@
         "development": "http://192.168.100.18:5000",
         "production": "https://api.tiendasdominicanas.com.do"
       },
-      "SENTRY_DSN": "",
+      "SENTRY_DSN": "https://576eb575e45146d3ac2395192d8cf6b5@glitchtip.tiendasdominicanas.com.do/6",
       "router": {
         "root": "./app"
       },
