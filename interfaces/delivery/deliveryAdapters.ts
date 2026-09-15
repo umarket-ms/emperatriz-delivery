@@ -1,6 +1,5 @@
 import { IDeliveryAssignmentEntity, OrderEntity } from "../delivery/delivery";
 import { AssignmentType } from "@/utils/enum";
-import { IProvincia, IMunicipio, ISector } from "@/interfaces/location";
 import { IDeliveryStatusEntity } from "../delivery/delivery";
 import { Capitalize } from "@/utils/capitalize";
 
@@ -14,19 +13,17 @@ export interface DeliveryItemAdapter {
   deliveryStatus: IDeliveryStatusEntity;
   deliveryAddress: string;
   observations?: string;
-  provincia: IProvincia;
-  municipio: IMunicipio;
-  origin?: ISector;
-  destiny?: ISector;
-  isGroup: boolean;
   additionalDataNominatimLat: number | null;
   additionalDataNominatimLng: number | null;
+  originNominatimId: number | null;
+  destinyNominatimId: number | null;
   relatedOrder?: OrderEntity;
   shipmentId: string;
   deliveryCost: number;
   amountToBeCharged: number;
   enterprise: string;
   deliveryVerificationCode?: string;
+  isGroup: boolean;
 }
 
 // Interfaz para representar un grupo de entregas
@@ -43,19 +40,17 @@ export function adaptDeliveriesToAdapter(deliveries: IDeliveryAssignmentEntity[]
   try {
     return deliveries.map(delivery => ({
       id: delivery.id.toString(),
-      title: `${Capitalize(delivery.provincia.nombre)}, ${Capitalize(delivery.municipio.nombre)}, ${Capitalize(delivery.origin?.nombre || '')}`,
+      title: delivery.deliveryAddress || '',
       client: Capitalize(delivery.contact),
       phone: delivery.phone,
       type: delivery.type,
       deliveryStatus: delivery.deliveryStatus,
       deliveryAddress: delivery.deliveryAddress,
       observations: delivery.observations,
-      provincia: delivery.provincia,
-      municipio: delivery.municipio,
-      origin: delivery.origin,
-      destiny: delivery.destiny,
       additionalDataNominatimLat: delivery.additionalDataNominatimLat,
       additionalDataNominatimLng: delivery.additionalDataNominatimLng,
+      originNominatimId: delivery.originNominatimId ?? null,
+      destinyNominatimId: delivery.destinyNominatimId ?? null,
       isGroup: delivery.isGroup || false,
       shipmentId: delivery.shipmentId,
       deliveryCost: Number(delivery.deliveryCost),

@@ -3,6 +3,7 @@ import { StyleSheet, Pressable, View as RNView } from 'react-native';
 import { Text } from '@/components/Themed';
 import { CustomColors } from '@/constants/CustomColors';
 import { Ionicons } from '@expo/vector-icons';
+import { useCurrency } from '@/core/hooks/useCurrency';
 
 export interface FacturaCXP {
   id: number;
@@ -32,10 +33,6 @@ export interface ProveedorRow {
   bankInfo: string;
 }
 
-function formatCurrency(value: number): string {
-  return value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -52,6 +49,7 @@ interface ProviderCardProps {
 }
 
 export function ProviderCard({ row, isExpanded, invoices, onToggle, onPay, onCreditNote, isSaving }: ProviderCardProps) {
+  const { formatPrice } = useCurrency();
   return (
     <RNView style={styles.providerCard}>
       <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }, styles.providerHeader]} onPress={onToggle}>
@@ -68,7 +66,7 @@ export function ProviderCard({ row, isExpanded, invoices, onToggle, onPay, onCre
           <Text style={styles.bankInfo}>{row.bankInfo}</Text>
         </RNView>
         <RNView style={styles.providerMeta}>
-          <Text style={styles.providerBalance}>{formatCurrency(row.saldoPendiente)}</Text>
+          <Text style={styles.providerBalance}>{formatPrice(row.saldoPendiente)}</Text>
           <Text style={styles.providerDocs}>{row.documentos} docs</Text>
         </RNView>
       </Pressable>
@@ -99,9 +97,9 @@ export function ProviderCard({ row, isExpanded, invoices, onToggle, onPay, onCre
                 </RNView>
                 <RNView style={styles.invoiceAmounts}>
                   <Text style={styles.invoiceAmountLabel}>Saldo pendiente:</Text>
-                  <Text style={styles.invoiceAmountValue}>{formatCurrency(inv.outstanding_balance)}</Text>
+                  <Text style={styles.invoiceAmountValue}>{formatPrice(inv.outstanding_balance)}</Text>
                   <Text style={styles.invoiceAmountLabel}>Total:</Text>
-                  <Text style={styles.invoiceAmountValue}>{formatCurrency(inv.total_amount)}</Text>
+                  <Text style={styles.invoiceAmountValue}>{formatPrice(inv.total_amount)}</Text>
                 </RNView>
               </RNView>
             ))

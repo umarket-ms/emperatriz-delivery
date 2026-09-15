@@ -1,16 +1,4 @@
-export interface IProvincia {
-    id: number;
-    nombre: string;
-    status:string
-}
-
-export interface IMunicipio {
-    id: number;
-    nombre: string;
-    provinciaId: number;
-}
-
-export interface ISector {
-    id: number;
-    nombre: string;
-}
+// Legacy interfaces (provincia/municipio/sector) were removed when backend
+// migrated to originNominatim/destinyNominatim (additional_data_nominatim FKs).
+// This file is kept empty to avoid import resolution errors if any stale
+// references remain.

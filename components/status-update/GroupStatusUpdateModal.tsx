@@ -25,6 +25,7 @@ import {
   updateDeliveryStatusUnified,
 } from "@/core/actions/delivery.actions";
 import { useDelivery } from "@/context/DeliveryContext";
+import { useCurrency } from "@/core/hooks/useCurrency";
 import {
   adaptDeliveriesToAdapter,
   DeliveryItemAdapter,
@@ -81,6 +82,7 @@ export default function GroupStatusUpdateModal({
   totalAmount,
 }: GroupStatusUpdateModalProps) {
   const { deliveries, handleDriversGroupAssigned } = useDelivery();
+  const { formatPrice } = useCurrency();
 
   const isPickupType = assignmentType === AssignmentType.PICKUP;
 
@@ -350,7 +352,7 @@ export default function GroupStatusUpdateModal({
             <Text style={styles.modalTitle}>Actualizar Estado</Text>
             <Text style={styles.deliveryTitle}>
               {groupTitle}
-              {!isPickupType ? ` · Total: RD$ ${totalAmount}` : ""}
+              {!isPickupType ? ` · Total: ${formatPrice(totalAmount)}` : ""}
             </Text>
             <Text style={styles.currentStatus}>
               Estado actual:{" "}

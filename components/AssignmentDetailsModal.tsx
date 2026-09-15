@@ -38,12 +38,7 @@ export default function AssignmentDetailsModal({
     Linking.openURL(`tel:${assignment.phone}`);
   };
 
-  const provincia = Capitalize(assignment.provincia?.nombre || "");
-  const municipio = Capitalize(assignment.municipio?.nombre || "");
-  const sector = Capitalize(assignment.origin?.nombre || assignment.destiny?.nombre || "");
-  const direccion = assignment.deliveryAddress || "";
-
-  const fullAddress = `${provincia}${provincia ? ', ' : ''}${municipio}${municipio ? ', ' : ''}${sector}${sector ? ', ' : ''}${direccion}`.trim();
+  const fullAddress = assignment.deliveryAddress || "";
   const siteType = assignment.type === AssignmentType.PICKUP ? 'RECOGIDA' : 'ENTREGA';
       
   return (

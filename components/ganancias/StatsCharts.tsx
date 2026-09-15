@@ -4,9 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, inte
 import { Ionicons } from '@expo/vector-icons';
 import { CustomColors } from '@/constants/CustomColors';
 import { MonthlyStatItem, WeeklyStatItem } from '@/core/actions/ganancias-actions';
-
-const formatDOP = (value: number) =>
-    value.toLocaleString('es-DO', { style: 'currency', currency: 'DOP', maximumFractionDigits: 2 });
+import { useCurrency } from '@/core/hooks/useCurrency';
 
 const AnimatedBar = ({ ratio, delay, color }: { ratio: number; delay: number; color: string }) => {
     const heightAnim = useSharedValue(0);
@@ -33,6 +31,7 @@ const EMPTY_MONTHLY: MonthlyStatItem[] = [];
 const EMPTY_WEEKLY: WeeklyStatItem[] = [];
 
 const StatsCharts = ({ monthlyStats = EMPTY_MONTHLY, weeklyStats = EMPTY_WEEKLY, isLoading = false }: StatsChartsProps) => {
+    const { formatPrice } = useCurrency();
     const fadeAnim = useSharedValue(0);
     const slideAnim = useSharedValue(30);
 
@@ -88,7 +87,7 @@ const StatsCharts = ({ monthlyStats = EMPTY_MONTHLY, weeklyStats = EMPTY_WEEKLY,
                             </View>
                             <View style={styles.chartFooter}>
                                 <Text style={styles.footerText}>
-                                    Mejor mes: {bestMonthItem?.month} · {formatDOP(bestMonthItem?.value ?? 0)}
+                                    Mejor mes: {bestMonthItem?.month} · {formatPrice(bestMonthItem?.value ?? 0)}
                                 </Text>
                             </View>
                         </>
@@ -127,7 +126,7 @@ const StatsCharts = ({ monthlyStats = EMPTY_MONTHLY, weeklyStats = EMPTY_WEEKLY,
                             </View>
                             <View style={styles.chartFooter}>
                                 <Text style={styles.footerText}>
-                                    Mejor día: {bestDayItem?.day} · {formatDOP(bestDayItem?.value ?? 0)}
+                                    Mejor día: {bestDayItem?.day} · {formatPrice(bestDayItem?.value ?? 0)}
                                 </Text>
                             </View>
                         </>

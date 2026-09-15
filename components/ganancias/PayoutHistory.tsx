@@ -4,9 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay } fro
 import { Ionicons } from '@expo/vector-icons';
 import { CustomColors } from '@/constants/CustomColors';
 import { PaidInvoice } from '@/core/actions/ganancias-actions';
-
-const formatDOP = (value: number) =>
-    value.toLocaleString('es-DO', { style: 'currency', currency: 'DOP', maximumFractionDigits: 2 });
+import { useCurrency } from '@/core/hooks/useCurrency';
 
 const formatDate = (dateStr: string): string => {
     if (!dateStr) return '';
@@ -14,6 +12,7 @@ const formatDate = (dateStr: string): string => {
 };
 
 const PayoutCard = ({ item, index }: { item: PaidInvoice; index: number }) => {
+    const { formatPrice } = useCurrency();
     const slideAnim = useSharedValue(30);
     const opacityAnim = useSharedValue(0);
 
@@ -33,7 +32,7 @@ const PayoutCard = ({ item, index }: { item: PaidInvoice; index: number }) => {
                 <View style={styles.accentBar} />
                 <View style={styles.cardLeft}>
                     <Text style={styles.weekLabel}>{item.invoiceNumber}</Text>
-                    <Text style={styles.amount}>{formatDOP(item.totalAmount)}</Text>
+                    <Text style={styles.amount}>{formatPrice(item.totalAmount)}</Text>
                     <Text style={styles.dateText}>{formatDate(item.issueDate)}</Text>
                 </View>
                 <View style={styles.cardRight}>
@@ -55,6 +54,7 @@ interface PayoutHistoryProps {
 const EMPTY_ITEMS: PaidInvoice[] = [];
 
 const PayoutHistory = ({ items = EMPTY_ITEMS, isLoading = false }: PayoutHistoryProps) => {
+    const { formatPrice } = useCurrency();
     const fadeAnim = useSharedValue(0);
 
     const animatedStyle = useAnimatedStyle(() => ({
@@ -75,13 +75,13 @@ const PayoutHistory = ({ items = EMPTY_ITEMS, isLoading = false }: PayoutHistory
                 <View style={styles.summaryCard}>
                     <Text style={styles.summaryLabel}>TOTAL PAGADO ({items.length} FACTURAS)</Text>
                     <Text style={styles.summaryAmount}>
-                        {isLoading ? '—' : formatDOP(totalPaid)}
+                        {isLoading ? '—' : formatPrice(totalPaid)}
                     </Text>
                     <View style={styles.summaryRow}>
                         <Ionicons name="trending-up" size={14} color={CustomColors.success} />
                         <Text style={styles.summarySubtext}>
                             {items.length} pago{items.length !== 1 ? 's' : ''} procesado{items.length !== 1 ? 's' : ''}
-                            {items.length > 0 ? ` · Promedio ${formatDOP(avgPaid)}` : ''}
+                            {items.length > 0 ? ` · Promedio ${formatPrice(avgPaid)}` : ''}
                         </Text>
                     </View>
                 </View>

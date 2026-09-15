@@ -1,6 +1,5 @@
 import type { AssignmentType } from "@/utils/enum";
 import type { IGlobalEntity } from "../global";
-import type { IMunicipio, IProvincia, ISector } from "../location";
 import type { IDeliveryPerson } from "../carrier";
 import type { IEnterpriseEntity } from "../auth";
 import type { IDeliveryStatus } from "./deliveryStatus";
@@ -41,18 +40,16 @@ export interface IDeliveryAssignmentSummaryEntity extends IGlobalEntity {
   amountPaid?: number;
   deliveryAddress: string;
   observations?: string;
-  provincia: IProvincia;
   shipmentId: string;
   type: AssignmentType;
-  municipio: IMunicipio;
   deliveryStatus: IDeliveryStatusEntity;
   assignedAt: Date;
   acceptedAt: Date;
   completedAt: Date;
   driver: IDeliveryPerson;
   paymentMethod?: IPaymentMethodEntity;
-  origin?: ISector;
-  destiny?: ISector;
+  originNominatimId: number | null;
+  destinyNominatimId: number | null;
   enterprise:IEnterpriseEntity;
 }
 
@@ -68,11 +65,11 @@ export interface IDeliveryAssignmentEntity extends IGlobalEntity {
   type: AssignmentType;
   deliveryAddress: string;
   observations?: string;
-  provincia: IProvincia;
-  municipio: IMunicipio;
   additionalDataNominatimId: number | null;
   additionalDataNominatimLat: number | null;
   additionalDataNominatimLng: number | null;
+  originNominatimId: number | null;
+  destinyNominatimId: number | null;
   deliveryStatus: IDeliveryStatusEntity;
   paymentMethod?: IPaymentMethodEntity;
   assignedAt: Date;
@@ -82,8 +79,6 @@ export interface IDeliveryAssignmentEntity extends IGlobalEntity {
   driver: IDeliveryPerson;
   isGroup: boolean;
   deliveryVerificationCode?: string;
-  origin?: ISector;
-  destiny?: ISector;
   enterprise:IEnterpriseEntity;
 }
 
@@ -147,10 +142,6 @@ export interface IDeliveryInfoDto {
   amountToBeCharged?: number;
   deliveryAddress: string;
   observations?: string;
-  provincia: number;
-  municipio: number;
-  origin: number;
-  destiny: number;
 }
 
 export interface ICreateDeliveryAssigment extends IDeliveryInfoDto{
@@ -167,6 +158,4 @@ export interface IDeliveryCost {
   id: number;
   value: number;
   description: string;
-  origin: number;
-  destiny: number;
 }

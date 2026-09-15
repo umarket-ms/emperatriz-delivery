@@ -40,7 +40,14 @@ export const DeliveryItem: React.FC<DeliveryItemProps> = ({ item }) => {
                   item.type === AssignmentType.PICKUP ? styles.pickupIndicator : styles.deliveryIndicator,
                 ]}
               >
-                <Text style={styles.typeText}>
+                <Text
+                  style={[
+                    styles.typeText,
+                    item.type === AssignmentType.PICKUP
+                      ? styles.pickupTypeText
+                      : styles.deliveryTypeText,
+                  ]}
+                >
                   {item.type === AssignmentType.PICKUP ? 'Recogida' : 'Entrega'}
                 </Text>
               </View>
@@ -113,9 +120,14 @@ const styles = StyleSheet.create({
     backgroundColor: CustomColors.secondary,
   },
   typeText: {
-    color: CustomColors.textLight,
     fontSize: 12,
     fontWeight: '700',
+  },
+  pickupTypeText: {
+    color: CustomColors.textDark,
+  },
+  deliveryTypeText: {
+    color: CustomColors.textLight,
   },
   metaRow: {
     flexDirection: 'row',
