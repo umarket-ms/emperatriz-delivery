@@ -166,11 +166,17 @@ export function useGroupProgressHandlers({
     }
 
     const filteredDeliveries = freshDeliveries.filter(
-      (d) => d && d.additionalDataNominatimLat != null && d.additionalDataNominatimLng != null,
+      (d) => {
+        if (!d) return false;
+        const isDelivery = d.type === 'DELIVERY';
+        const lat = isDelivery ? d.destinyNominatimLat : d.originNominatimLat;
+        const lng = isDelivery ? d.destinyNominatimLng : d.originNominatimLng;
+        return lat != null && lng != null;
+      },
     );
     const nullableCount = freshDeliveries.length - filteredDeliveries.length;
     if (nullableCount > 0) {
-      console.log("[TripMapScreen][DEBUG] handleGroupCompleted: entregas sin additionalDataNominatim filtradas:", nullableCount);
+      console.log("[TripMapScreen][DEBUG] handleGroupCompleted: entregas sin coordenadas nominatim filtradas:", nullableCount);
     }
     setTripDeliveries(filteredDeliveries);
 

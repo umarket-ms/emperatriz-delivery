@@ -65,11 +65,12 @@ export interface IDeliveryAssignmentEntity extends IGlobalEntity {
   type: AssignmentType;
   deliveryAddress: string;
   observations?: string;
-  additionalDataNominatimId: number | null;
-  additionalDataNominatimLat: number | null;
-  additionalDataNominatimLng: number | null;
   originNominatimId: number | null;
   destinyNominatimId: number | null;
+  originNominatimLat: number | null;
+  originNominatimLng: number | null;
+  destinyNominatimLat: number | null;
+  destinyNominatimLng: number | null;
   deliveryStatus: IDeliveryStatusEntity;
   paymentMethod?: IPaymentMethodEntity;
   assignedAt: Date;

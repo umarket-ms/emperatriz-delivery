@@ -38,15 +38,17 @@ interface RouteProviderProps {
 
 function prepareRouteData(allDeliveries: DeliveryItemAdapter[]) {
   const pendingDeliveries = allDeliveries.filter(delivery => {
-    console.log('delivery: ', delivery.id, 'status: ', delivery.deliveryStatus.title, 'nominatim: ', { lat: delivery.additionalDataNominatimLat, lng: delivery.additionalDataNominatimLng });
+    const isDelivery = delivery.type === 'DELIVERY';
+    const lat = isDelivery ? delivery.destinyNominatimLat : delivery.originNominatimLat;
+    const lng = isDelivery ? delivery.destinyNominatimLng : delivery.originNominatimLng;
+    console.log('delivery: ', delivery.id, 'status: ', delivery.deliveryStatus.title, 'nominatim: ', { lat, lng });
     
     const isPending = delivery.deliveryStatus.title !== IDeliveryStatus.DELIVERED &&
                      delivery.deliveryStatus.title !== IDeliveryStatus.CANCELLED &&
                      delivery.deliveryStatus.title !== IDeliveryStatus.RETURNED &&
                      delivery.deliveryStatus.title !== IDeliveryStatus.SCHEDULED;
 
-    const hasCoordinates = delivery.additionalDataNominatimLat != null &&
-                          delivery.additionalDataNominatimLng != null;
+    const hasCoordinates = lat != null && lng != null;
 
     return isPending && hasCoordinates;
   });
@@ -55,10 +57,13 @@ function prepareRouteData(allDeliveries: DeliveryItemAdapter[]) {
     return null;
   } 
 
-  const coordinates = pendingDeliveries.map(delivery => ({
-    latitude: delivery.additionalDataNominatimLat!,
-    longitude: delivery.additionalDataNominatimLng!,
-  }));
+  const coordinates = pendingDeliveries.map(delivery => {
+    const isDelivery = delivery.type === 'DELIVERY';
+    return {
+      latitude: (isDelivery ? delivery.destinyNominatimLat : delivery.originNominatimLat)!,
+      longitude: (isDelivery ? delivery.destinyNominatimLng : delivery.originNominatimLng)!,
+    };
+  });
 
   return { pendingDeliveries, coordinates };
 }

@@ -117,8 +117,9 @@ export const DeliveryItemList: React.FC<DeliveryItemListProps> = ({
       return;
     }
 
-    const lat = item.additionalDataNominatimLat;
-    const lon = item.additionalDataNominatimLng;
+    const isDelivery = item.type === 'DELIVERY';
+    const lat = isDelivery ? item.destinyNominatimLat : item.originNominatimLat;
+    const lon = isDelivery ? item.destinyNominatimLng : item.originNominatimLng;
     if (!lat || !lon) {
       Alert.alert('WhatsApp', 'No se encontraron coordenadas para esta entrega.');
       return;

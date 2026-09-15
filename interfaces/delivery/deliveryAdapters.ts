@@ -13,10 +13,12 @@ export interface DeliveryItemAdapter {
   deliveryStatus: IDeliveryStatusEntity;
   deliveryAddress: string;
   observations?: string;
-  additionalDataNominatimLat: number | null;
-  additionalDataNominatimLng: number | null;
   originNominatimId: number | null;
   destinyNominatimId: number | null;
+  originNominatimLat: number | null;
+  originNominatimLng: number | null;
+  destinyNominatimLat: number | null;
+  destinyNominatimLng: number | null;
   relatedOrder?: OrderEntity;
   shipmentId: string;
   deliveryCost: number;
@@ -47,10 +49,12 @@ export function adaptDeliveriesToAdapter(deliveries: IDeliveryAssignmentEntity[]
       deliveryStatus: delivery.deliveryStatus,
       deliveryAddress: delivery.deliveryAddress,
       observations: delivery.observations,
-      additionalDataNominatimLat: delivery.additionalDataNominatimLat,
-      additionalDataNominatimLng: delivery.additionalDataNominatimLng,
       originNominatimId: delivery.originNominatimId ?? null,
       destinyNominatimId: delivery.destinyNominatimId ?? null,
+      originNominatimLat: (delivery as any).originNominatimLat ?? null,
+      originNominatimLng: (delivery as any).originNominatimLng ?? null,
+      destinyNominatimLat: (delivery as any).destinyNominatimLat ?? null,
+      destinyNominatimLng: (delivery as any).destinyNominatimLng ?? null,
       isGroup: delivery.isGroup || false,
       shipmentId: delivery.shipmentId,
       deliveryCost: Number(delivery.deliveryCost),
