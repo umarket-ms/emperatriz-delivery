@@ -1,4 +1,4 @@
-import { IDeliveryAssignmentEntity, OrderEntity } from "../delivery/delivery";
+import { IDeliveryAssignmentEntity, OrderEntity, DeliveryAssignmentDetailEntity } from "../delivery/delivery";
 import { AssignmentType } from "@/utils/enum";
 import { IDeliveryStatusEntity } from "../delivery/delivery";
 import { Capitalize } from "@/utils/capitalize";
@@ -20,6 +20,7 @@ export interface DeliveryItemAdapter {
   destinyNominatimLat: number | null;
   destinyNominatimLng: number | null;
   relatedOrder?: OrderEntity;
+  deliveryAssignmentDetails?: DeliveryAssignmentDetailEntity[];
   shipmentId: string;
   deliveryCost: number;
   amountToBeCharged: number;
@@ -60,6 +61,7 @@ export function adaptDeliveriesToAdapter(deliveries: IDeliveryAssignmentEntity[]
       deliveryCost: Number(delivery.deliveryCost),
       amountToBeCharged: Number((delivery as any).amountToBeCharged ?? (delivery as any).cost ?? 0),
       relatedOrder: delivery.relatedOrder,
+      deliveryAssignmentDetails: (delivery as any).deliveryAssignmentDetails,
       enterprise: delivery.enterprise.title,
       deliveryVerificationCode: delivery.deliveryVerificationCode,
     }));    

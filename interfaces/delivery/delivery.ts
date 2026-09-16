@@ -80,7 +80,26 @@ export interface IDeliveryAssignmentEntity extends IGlobalEntity {
   driver: IDeliveryPerson;
   isGroup: boolean;
   deliveryVerificationCode?: string;
-  enterprise:IEnterpriseEntity;
+  enterprise: IEnterpriseEntity;
+  deliveryAssignmentDetails?: DeliveryAssignmentDetailEntity[];
+}
+
+export interface DeliveryAssignmentDetailEntity {
+  id: number;
+  shipmentId: string;
+  quantity: number | null;
+  unitPrice: number;
+  sellerUnitPrice: number;
+  additionalAmount: number | null;
+  productTitle: string | null;
+  orderSource: string;
+  type: string;
+  productId: number | null;
+  productVariationSelectedId: number | null;
+  deliveryAssignmentId: number;
+  enterpriseId: number | null;
+  status: string | null;
+  imageUrl: string | null;
 }
 
 export interface OrderEntity extends IGlobalEntity {

@@ -74,6 +74,10 @@ export const CustomColors = {
   error: palette.red,
   warning: '#F59E0B',
   info: '#3B82F6',
+  violet: '#8B5CF6',
+  orange: '#F97316',
+  teal: '#14B8A6',
+  slate: '#94A3B8',
 
   // ── Backgrounds ────────────────────────────────────────────
   backgroundLight: palette.white,
@@ -103,8 +107,6 @@ export const CustomColors = {
   // ── Legacy palette references (kept for backward compat) ──
   cream: palette.white,
   coral: palette.red,
-  orange: palette.red,
-  slate: palette.black,
   navy: palette.black,
 } as const;
 

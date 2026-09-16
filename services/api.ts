@@ -49,7 +49,7 @@ const getProductImageUrl = () => {
 
 // URL base para todas las peticiones
 export const API_URL = getApiBaseUrl();
-const PRODUCT_IMAGE_URL = getProductImageUrl();
+export const PRODUCT_IMAGE_URL = getProductImageUrl();
 
 /**
  * Construye la URL completa de un endpoint de la API.

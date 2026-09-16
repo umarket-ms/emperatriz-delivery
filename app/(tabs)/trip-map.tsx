@@ -310,6 +310,7 @@ export default function TripMapScreen() {
             setSelectedAssignment(null);
           }}
           assignment={selectedAssignment ?? ({} as DeliveryItemAdapter)}
+          allAssignments={tripDeliveries}
         />
 
         {groupStatusModalParams && (
