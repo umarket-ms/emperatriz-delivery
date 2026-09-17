@@ -50,11 +50,17 @@ export const LEAFLET_MAP_HTML = `
             bounds.extend(latlng);
             var color = wp.isFirstInRoute ? '#E53935' : wp.isLastInRoute ? '#E53935' : '#FFFFFF';
             var textColor = wp.isFirstInRoute ? '#FFFFFF' : wp.isLastInRoute ? '#FFFFFF' : '#111827';
+            var badgeHtml = wp.count > 1
+              ? '<div style="position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:#E53935;color:#FFFFFF;font-weight:700;font-size:10px;border:2px solid #FFFFFF;display:flex;align-items:center;justify-content:center;z-index:1">' + wp.count + '</div>'
+              : '';
             var icon = L.divIcon({
               className: 'custom-marker',
-              html: '<div style="width:32px;height:32px;border-radius:50%;background:'+color+';color:'+textColor+';font-weight:bold;font-size:14px;border:2px solid #FFFFFF;box-shadow:0 2px 4px rgba(17,24,39,0.4)">' + wp.count + '</div>',
-              iconSize: [32, 32],
-              iconAnchor: [16, 16]
+              html: '<div style="position:relative;width:38px;height:38px">' +
+                '<div style="width:38px;height:38px;border-radius:50%;background:'+color+';color:'+textColor+';font-weight:bold;font-size:15px;border:2px solid #FFFFFF;box-shadow:0 2px 6px rgba(17,24,39,0.4);display:flex;align-items:center;justify-content:center">' + wp.position + '</div>' +
+                badgeHtml +
+                '</div>',
+              iconSize: [38, 38],
+              iconAnchor: [19, 19]
             });
             var marker = L.marker(latlng, { icon: icon }).addTo(map);
             marker.on('click', function() {
@@ -75,7 +81,7 @@ export const LEAFLET_MAP_HTML = `
               iconSize: [24, 24],
               iconAnchor: [12, 12]
             });
-            courierMarker = L.marker([msg.latitude, msg.longitude], { icon: icon }).addTo(map);
+            courierMarker = L.marker([msg.latitude, msg.longitude], { icon: icon, zIndexOffset: 1000 }).addTo(map);
           }
           break;
 

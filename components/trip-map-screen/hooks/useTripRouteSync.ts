@@ -62,6 +62,7 @@ export function useTripRouteSync(params: UseTripRouteSyncParams): void {
         );
       }
       return {
+        position: idx + 1,
         latitude: g.coordinate?.latitude,
         longitude: g.coordinate?.longitude,
         count: g.count,
