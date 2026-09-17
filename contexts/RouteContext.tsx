@@ -1,5 +1,4 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
-import { router } from 'expo-router';
 import { useOsrmTrip } from '@/core/hooks/useOsrmTrip';
 import { DeliveryItemAdapter } from '@/interfaces/delivery/deliveryAdapters';
 import { IDeliveryStatus } from '@/interfaces/delivery/deliveryStatus';
@@ -170,7 +169,7 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
       };
 
       setTripData(tripDataFromBackend);
-      router.push('/(tabs)/trip-map');
+      // Navegación eliminada: Ruta es ahora la pantalla principal
 
       console.log('[RouteContext] ✅ Ruta optimizada cargada correctamente');
     } catch (error:any) {

@@ -81,7 +81,7 @@ export const LEAFLET_MAP_HTML = `
               iconSize: [24, 24],
               iconAnchor: [12, 12]
             });
-            courierMarker = L.marker([msg.latitude, msg.longitude], { icon: icon, zIndexOffset: 1000 }).addTo(map);
+            courierMarker = L.marker([msg.latitude, msg.longitude], { icon: icon, zIndexOffset: 0 }).addTo(map);
           }
           break;
 

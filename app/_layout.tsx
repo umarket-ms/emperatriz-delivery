@@ -12,6 +12,7 @@ import { Image } from 'expo-image';
 import { Provider as PaperProvider, MD3DarkTheme } from 'react-native-paper';
 import type { MD3Theme } from 'react-native-paper';
 import { registerTranslation } from 'react-native-paper-dates';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 registerTranslation('es', {
   save: 'Guardar',
@@ -206,8 +207,8 @@ function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
       // Autenticado pero sin carrier → redirigir a login
       router.replace('/login');
     } else if (isAuthenticated && user?.isEmailVerified && !user?.mustChangePassword && (isLoginScreen || isVerifyScreen || isChangePasswordScreen)) {
-      // Autenticado y verificado con carrier → app
-      router.replace('/(tabs)');
+      // Autenticado y verificado con carrier → app (Ruta es la pantalla principal)
+      router.replace('/(tabs)/trip-map');
     }
   }, [segments, isAuthenticated, isLoading, navigationState?.key, user?.isEmailVerified, user?.mustChangePassword, carrier]);
 
@@ -264,33 +265,35 @@ function RootLayoutNav() {
   const paperTheme = paperCustomTheme;
 
   return (
-    <SafeAreaProvider>
-      <PaperProvider theme={paperTheme}>
-      <AuthProvider>
-        <ActiveDeliveryProvider>
-          <DeliveryProvider>
-              <ThemeProvider value={navCustomTheme}>
-              <ProtectedRouteGuard>
-                <Stack screenOptions={{
-                  headerStyle: {
-                    backgroundColor: CustomColors.backgroundDarkest
-                  },
-                  headerTintColor: CustomColors.white
-                }}>
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-                  <Stack.Screen name="login" options={{ headerShown: false }} />
-                  <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
-                </Stack>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <PaperProvider theme={paperTheme}>
+        <AuthProvider>
+          <ActiveDeliveryProvider>
+            <DeliveryProvider>
+                <ThemeProvider value={navCustomTheme}>
+                <ProtectedRouteGuard>
+                  <Stack screenOptions={{
+                    headerStyle: {
+                      backgroundColor: CustomColors.backgroundDarkest
+                    },
+                    headerTintColor: CustomColors.white
+                  }}>
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="login" options={{ headerShown: false }} />
+                    <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+                  </Stack>
 
-                <NotificationHandler />
-              </ProtectedRouteGuard>
-            </ThemeProvider>
-          </DeliveryProvider>
-        </ActiveDeliveryProvider>
-      </AuthProvider>
-      </PaperProvider>
-    </SafeAreaProvider>
+                  <NotificationHandler />
+                </ProtectedRouteGuard>
+              </ThemeProvider>
+            </DeliveryProvider>
+          </ActiveDeliveryProvider>
+        </AuthProvider>
+        </PaperProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

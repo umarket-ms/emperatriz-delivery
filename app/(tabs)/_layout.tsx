@@ -18,6 +18,7 @@ export default function TabLayout() {
   return (
     <RouteProvider>
     <Tabs
+      initialRouteName="trip-map"
       screenOptions={{
         tabBarActiveTintColor: CustomColors.primary,
         tabBarInactiveTintColor: CustomColors.neutralLight,
@@ -35,11 +36,17 @@ export default function TabLayout() {
         headerShown: useClientOnlyValue(false, true),
       }}>
       <Tabs.Screen
+        name="trip-map"
+        options={{
+          title: 'Ruta',
+          tabBarIcon: ({ color }) => <TabBarIcon name="map" color={color} />,
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
-          title: 'Elementos',
-          tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
-          headerShown: false,
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -47,14 +54,6 @@ export default function TabLayout() {
         options={{
           title: 'Ajustes',
           tabBarIcon: ({ color }) => <TabBarIcon name="gear" color={color} />,
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen
-        name="trip-map"
-        options={{
-          title: 'Ruta',
-          tabBarIcon: ({ color }) => <TabBarIcon name="map" color={color} />,
           headerShown: false,
         }}
       />
