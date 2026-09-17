@@ -11,7 +11,7 @@ export interface ProgressionState {
 }
 
 export type ProgressionAction =
-  | { type: "RESET" }
+  | { type: "RESET"; startIndex?: number }
   | { type: "SET_TARGET_INDEX"; index: number }
   | { type: "ADD_COMPLETED_IDS"; ids: string[] }
   | { type: "SET_STATUS_OVERRIDES"; updater: (prev: Map<string, string>) => Map<string, string> };
@@ -23,7 +23,7 @@ export function progressionReducer(
   switch (action.type) {
     case "RESET":
       return {
-        currentTargetGroupIndex: 0,
+        currentTargetGroupIndex: action.startIndex ?? 0,
         completedDeliveryIds: new Set(),
         deliveryStatusOverrides: new Map(),
       };
@@ -100,7 +100,7 @@ export function useGroupProgressHandlers({
       console.log("[TripMapScreen][DEBUG] handleProgressGroup: deliveries[0].type es undefined/null");
     }
     const totalAmount = deliveries.reduce(
-      (sum, d) => sum + (d.deliveryCost || 0) + (d.amountToBeCharged || 0),
+      (sum, d) => sum + (d.deliveryCostInLocalCurrency || d.deliveryCost || 0) + (d.amountToBeCharged || 0),
       0,
     );
     const label = type === AssignmentType.PICKUP ? "Recogida" : "Entrega";

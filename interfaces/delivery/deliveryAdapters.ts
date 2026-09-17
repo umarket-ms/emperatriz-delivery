@@ -13,6 +13,7 @@ export interface DeliveryItemAdapter {
   deliveryStatus: IDeliveryStatusEntity;
   deliveryAddress: string;
   observations?: string;
+  status?: string;
   originNominatimId: number | null;
   destinyNominatimId: number | null;
   originNominatimLat: number | null;
@@ -23,6 +24,7 @@ export interface DeliveryItemAdapter {
   deliveryAssignmentDetails?: DeliveryAssignmentDetailEntity[];
   shipmentId: string;
   deliveryCost: number;
+  deliveryCostInLocalCurrency: number;
   amountToBeCharged: number;
   enterprise: string;
   deliveryVerificationCode?: string;
@@ -50,6 +52,7 @@ export function adaptDeliveriesToAdapter(deliveries: IDeliveryAssignmentEntity[]
       deliveryStatus: delivery.deliveryStatus,
       deliveryAddress: delivery.deliveryAddress,
       observations: delivery.observations,
+      status: delivery.status,
       originNominatimId: delivery.originNominatimId ?? null,
       destinyNominatimId: delivery.destinyNominatimId ?? null,
       originNominatimLat: (delivery as any).originNominatimLat ?? null,
@@ -59,6 +62,7 @@ export function adaptDeliveriesToAdapter(deliveries: IDeliveryAssignmentEntity[]
       isGroup: delivery.isGroup || false,
       shipmentId: delivery.shipmentId,
       deliveryCost: Number(delivery.deliveryCost),
+      deliveryCostInLocalCurrency: Number((delivery as any).deliveryCostInLocalCurrency ?? delivery.deliveryCost),
       amountToBeCharged: Number((delivery as any).amountToBeCharged ?? (delivery as any).cost ?? 0),
       relatedOrder: delivery.relatedOrder,
       deliveryAssignmentDetails: (delivery as any).deliveryAssignmentDetails,
@@ -102,7 +106,7 @@ function groupDeliveriesByShipment(deliveries: DeliveryItemAdapter[]): (Delivery
         shipmentId,
         pickups,
         delivery: deliveryItem,
-        totalDeliveryCost: groupItems.reduce((sum, item) => sum + Number(item.deliveryCost), 0),
+        totalDeliveryCost: groupItems.reduce((sum, item) => sum + Number(item.deliveryCostInLocalCurrency ?? item.deliveryCost), 0),
         totalAmountToBeCharged: groupItems.reduce((sum, item) => sum + Number((item as any).amountToBeCharged ?? (item as any).deliveryCost ?? 0), 0),
       };
       result.push(group);

@@ -57,6 +57,7 @@ export interface IDeliveryAssignmentEntity extends IGlobalEntity {
   id: number;
   order: number;
   deliveryCost: number;
+  deliveryCostInLocalCurrency?: number;
   contact: string;
   amountToBeCharged: number;
   amountPaid?: number;
@@ -65,6 +66,7 @@ export interface IDeliveryAssignmentEntity extends IGlobalEntity {
   type: AssignmentType;
   deliveryAddress: string;
   observations?: string;
+  status?: string;
   originNominatimId: number | null;
   destinyNominatimId: number | null;
   originNominatimLat: number | null;

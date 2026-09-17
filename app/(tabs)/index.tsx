@@ -198,7 +198,7 @@ function TabOneScreenContent() {
       assignmentType: delivery.type,
       groupTitle: `${delivery.type === AssignmentType.PICKUP ? "Recogida" : "Entrega"}: ${delivery.client}`,
       currentStatus: delivery.deliveryStatus?.title || "",
-      totalAmount: Number(delivery.deliveryCost + delivery.amountToBeCharged),
+      totalAmount: Number(delivery.deliveryCostInLocalCurrency + delivery.amountToBeCharged),
     });
     setGroupStatusModalVisible(true);
   };

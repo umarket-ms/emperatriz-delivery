@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { CustomColors } from "@/constants/CustomColors";
 import { DeliveryItemAdapter } from "@/interfaces/delivery/deliveryAdapters";
+import { IDeliveryStatus } from "@/interfaces/delivery/deliveryStatus";
 import { useRouteContext } from "@/contexts/RouteContext";
 import RouteInfoPanel from "@/components/RouteInfoPanel";
 import AssignmentDetailsModal from "@/components/AssignmentDetailsModal";
@@ -55,10 +56,34 @@ export default function TripMapScreen() {
   const tripDataRef = useRef(tripData);
   useEffect(() => {
     if (tripData !== tripDataRef.current) {
-      dispatch({ type: "RESET" });
+      // Compute the correct starting index: find first group with non-terminal delivery
+      let startIndex = 0;
+      if (groupedWaypoints.length > 0) {
+        for (let i = 0; i < groupedWaypoints.length; i++) {
+          const group = groupedWaypoints[i];
+          const hasNonTerminal = group.deliveries?.some(
+            (d) => {
+              const status = progression.deliveryStatusOverrides.get(d.id) ?? d.deliveryStatus?.title;
+              return status !== IDeliveryStatus.DELIVERED &&
+                     status !== IDeliveryStatus.CANCELLED &&
+                     status !== IDeliveryStatus.RETURNED &&
+                     status !== IDeliveryStatus.SCHEDULED;
+            }
+          );
+          if (hasNonTerminal) {
+            startIndex = i;
+            break;
+          }
+          // If all deliveries in this group are terminal, check next group
+          if (i === groupedWaypoints.length - 1) {
+            startIndex = groupedWaypoints.length - 1;
+          }
+        }
+      }
+      dispatch({ type: "RESET", startIndex });
       tripDataRef.current = tripData;
     }
-  }, [tripData]);
+  }, [tripData, groupedWaypoints]);
 
   // ----- Modal state -----
   const {
@@ -166,6 +191,15 @@ export default function TripMapScreen() {
     isTraveling,
     currentTargetGroupIndex: progression.currentTargetGroupIndex,
   });
+
+  // Re-sync with server on mount to get fresh delivery statuses
+  const hasReSyncedRef = useRef(false);
+  useEffect(() => {
+    if (tripData && !hasReSyncedRef.current) {
+      hasReSyncedRef.current = true;
+      recalculateRoutesViaBackend().catch(() => {});
+    }
+  }, [tripData]);
 
   // ===== Effects =====
 

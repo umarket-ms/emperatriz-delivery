@@ -170,7 +170,7 @@ export default function RootLayout() {
 
 // Protección de rutas
 function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, carrier } = useAuth();
   const { fetchDeliveries } = useDelivery();
   const segments = useSegments();
   const navigationState = useRootNavigationState();
@@ -202,11 +202,14 @@ function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
     } else if (isAuthenticated && user?.isEmailVerified && user?.mustChangePassword && !isChangePasswordScreen) {
       // Email verificado pero debe cambiar contraseña inicial
       router.replace('/change-initial-password');
+    } else if (isAuthenticated && user?.isEmailVerified && !user?.mustChangePassword && !carrier) {
+      // Autenticado pero sin carrier → redirigir a login
+      router.replace('/login');
     } else if (isAuthenticated && user?.isEmailVerified && !user?.mustChangePassword && (isLoginScreen || isVerifyScreen || isChangePasswordScreen)) {
-      // Autenticado y verificado → app
+      // Autenticado y verificado con carrier → app
       router.replace('/(tabs)');
     }
-  }, [segments, isAuthenticated, isLoading, navigationState?.key, user?.isEmailVerified, user?.mustChangePassword]);
+  }, [segments, isAuthenticated, isLoading, navigationState?.key, user?.isEmailVerified, user?.mustChangePassword, carrier]);
 
   useEffect(() => {
     // Oculta los botones de Android

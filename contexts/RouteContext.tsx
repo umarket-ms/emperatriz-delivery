@@ -43,6 +43,7 @@ function prepareRouteData(allDeliveries: DeliveryItemAdapter[]) {
     const lng = isDelivery ? delivery.destinyNominatimLng : delivery.originNominatimLng;
     console.log('delivery: ', delivery.id, 'status: ', delivery.deliveryStatus.title, 'nominatim: ', { lat, lng });
     
+    const isActive = delivery.status !== 'inactive';
     const isPending = delivery.deliveryStatus.title !== IDeliveryStatus.DELIVERED &&
                      delivery.deliveryStatus.title !== IDeliveryStatus.CANCELLED &&
                      delivery.deliveryStatus.title !== IDeliveryStatus.RETURNED &&
@@ -50,7 +51,7 @@ function prepareRouteData(allDeliveries: DeliveryItemAdapter[]) {
 
     const hasCoordinates = lat != null && lng != null;
 
-    return isPending && hasCoordinates;
+    return isActive && isPending && hasCoordinates;
   });
 
   if (pendingDeliveries.length === 0) {
@@ -72,12 +73,15 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
   const { data: tripData, loading: tripLoading, error: tripError, fetchTrip, setTripData } = useOsrmTrip();
   const [tripDeliveries, setTripDeliveries] = useState<DeliveryItemAdapter[]>([]);
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
-  const { user, carrier } = useAuth();
+  const { user, carrier, isLoading } = useAuth();
 
   // Método para iniciar rutas con optimización del backend
   const startRoutes = async (allDeliveries: DeliveryItemAdapter[]) => {
     console.log('[RouteContext] Iniciando cálculo de rutas optimizadas desde backend...');
     
+    if (isLoading) {
+      throw new Error('El contexto de autenticación aún está cargando, espere un momento.');
+    }
     if (!user) {
       throw new Error('Usuario no autenticado');
     }

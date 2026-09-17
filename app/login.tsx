@@ -167,6 +167,13 @@ export default function LoginScreen() {
                 } else if (authData.user && authData.user.mustChangePassword) {
                     // Debe cambiar su contraseña inicial
                     router.replace('/change-initial-password');
+                } else if (authData.user && !authData.carrier) {
+                    // Carrier data is missing -- cannot proceed
+                    Alert.alert(
+                        'Error',
+                        'No se encontró información de mensajero asociada a tu cuenta. Contacte al administrador.',
+                    );
+                    await authService.logout();
                 } else {
                     // Usuario ya verificado, ir a la aplicación principal
                     router.replace('/(tabs)');

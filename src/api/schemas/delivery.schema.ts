@@ -10,6 +10,7 @@ const DeliveryAssignmentSchema = z.object({
     id: z.number(),
     order: z.number(),
     deliveryCost: z.union([z.number(), z.string()]),
+    deliveryCostInLocalCurrency: z.union([z.number(), z.string()]).optional(),
     contact: z.string(),
     amountToBeCharged: z.union([z.number(), z.string()]),
     phone: z.string(),
