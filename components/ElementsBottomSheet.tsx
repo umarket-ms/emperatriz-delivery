@@ -161,7 +161,7 @@ const ElementsBottomSheet = forwardRef<ElementsBottomSheetMethods, ElementsBotto
         assignmentType: delivery.type,
         groupTitle: `${delivery.type === AssignmentType.PICKUP ? "Recogida" : "Entrega"}: ${delivery.client}`,
         currentStatus: delivery.deliveryStatus?.title || "",
-        totalAmount: Number(delivery.deliveryCostInLocalCurrency + delivery.amountToBeCharged),
+        totalAmount: Math.ceil(Number(delivery.deliveryCostInLocalCurrency + delivery.amountToBeCharged) / 5) * 5,
       });
       setGroupStatusModalVisible(true);
     };

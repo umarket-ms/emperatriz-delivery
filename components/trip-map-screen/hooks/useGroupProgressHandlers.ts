@@ -99,10 +99,10 @@ export function useGroupProgressHandlers({
     if (type == null) {
       console.log("[TripMapScreen][DEBUG] handleProgressGroup: deliveries[0].type es undefined/null");
     }
-    const totalAmount = deliveries.reduce(
+    const totalAmount = Math.ceil(deliveries.reduce(
       (sum, d) => sum + (d.deliveryCostInLocalCurrency || d.deliveryCost || 0) + (d.amountToBeCharged || 0),
       0,
-    );
+    ) / 5) * 5;
     const label = type === AssignmentType.PICKUP ? "Recogida" : "Entrega";
     const client = deliveries[0].client;
     if (client == null) {

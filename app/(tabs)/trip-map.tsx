@@ -210,15 +210,6 @@ export default function TripMapScreen() {
     currentTargetGroupIndex: progression.currentTargetGroupIndex,
   });
 
-  // Re-sync with server on mount to get fresh delivery statuses
-  const hasReSyncedRef = useRef(false);
-  useEffect(() => {
-    if (tripData && !hasReSyncedRef.current) {
-      hasReSyncedRef.current = true;
-      recalculateRoutesViaBackend().catch(() => {});
-    }
-  }, [tripData]);
-
   // Auto-start routes when GPS position is ready and we have deliveries but no tripData
   const hasAutoStartedRef = useRef(false);
   useEffect(() => {
@@ -228,9 +219,9 @@ export default function TripMapScreen() {
 
     hasAutoStartedRef.current = true;
     console.log("[TripMapScreen] GPS listo, ejecutando startRoutes...");
-    startRoutes(allDeliveries).catch((err) => {
+    startRoutes(allDeliveries, currentPosition).catch((err) => {
       console.log("[TripMapScreen] Auto-start routes failed:", err);
-      hasAutoStartedRef.current = false;
+      // No reset hasAutoStartedRef — prevent infinite retry loop
     });
   }, [currentPosition, tripData, tripLoading, allDeliveries, startRoutes]);
 

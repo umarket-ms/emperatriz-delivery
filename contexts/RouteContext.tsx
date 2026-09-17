@@ -15,9 +15,9 @@ interface RouteContextType {
   tripDeliveries: DeliveryItemAdapter[];
 
   // Métodos
-  startRoutes: (allDeliveries: DeliveryItemAdapter[]) => Promise<void>;
+  startRoutes: (allDeliveries: DeliveryItemAdapter[], fallbackPosition?: { latitude: number; longitude: number }) => Promise<void>;
   recalculateRoutes: (allDeliveries: DeliveryItemAdapter[]) => Promise<void>;
-  recalculateRoutesViaBackend: () => Promise<void>;
+  recalculateRoutesViaBackend: (fallbackPosition?: { latitude: number; longitude: number }) => Promise<void>;
   setTripDeliveries: (deliveries: DeliveryItemAdapter[]) => void;
 }
 
@@ -75,7 +75,7 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
   const { user, carrier, isLoading } = useAuth();
 
   // Método para iniciar rutas con optimización del backend
-  const startRoutes = async (allDeliveries: DeliveryItemAdapter[]) => {
+  const startRoutes = async (allDeliveries: DeliveryItemAdapter[], fallbackPosition?: { latitude: number; longitude: number }) => {
     console.log('[RouteContext] Iniciando cálculo de rutas optimizadas desde backend...');
     
     if (isLoading) {
@@ -96,25 +96,29 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
     setIsOptimizing(true);
     try {
       // Paso 0: Obtener ubicación actual del courier
+      let lat: number;
+      let lng: number;
+
       const { courierLocationTracking } = await import('@/services/courierLocationService');
       const currentLocation = await courierLocationTracking.getCurrentLocation();
 
-      if (!currentLocation) {
+      if (currentLocation) {
+        lat = currentLocation.coords.latitude;
+        lng = currentLocation.coords.longitude;
+        console.log('[RouteContext] Ubicación obtenida de courierLocationService:', { lat, lng });
+      } else if (fallbackPosition) {
+        lat = fallbackPosition.latitude;
+        lng = fallbackPosition.longitude;
+        console.log('[RouteContext] Usando fallbackPosition del screen:', { lat, lng });
+      } else {
         throw new Error('No se pudo obtener la ubicación actual del mensajero');
       }
-      console.log('currentLocation: ',currentLocation);
-      
-      console.log('[RouteContext] Ubicación actual obtenida:', {
-        lat: currentLocation.coords.latitude,
-        lng: currentLocation.coords.longitude
-      });
 
       // Paso 1: Obtener ruta optimizada desde el backend con ubicación actual
       console.log('[RouteContext] Solicitando ruta optimizada al backend...');
-      console.log('CARRIER:', carrier);      
       const optimizedRoute = await getOptimizedRoute(carrierId, {
-        lat: currentLocation.coords.latitude,
-        lng: currentLocation.coords.longitude,
+        lat,
+        lng,
       });
 
       console.log('[RouteContext] Ruta optimizada recibida del backend');
@@ -211,7 +215,7 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
   };
 
   // Recalcula la ruta vía backend (igual que startRoutes pero sin navegar al mapa)
-  const recalculateRoutesViaBackend = useCallback(async () => {
+  const recalculateRoutesViaBackend = useCallback(async (fallbackPosition?: { latitude: number; longitude: number }) => {
     console.log('[RouteContext] Recalculando ruta vía backend por nueva asignación...');
 
     if (!user) return;
@@ -220,16 +224,27 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
 
     setIsOptimizing(true);
     try {
+      let lat: number;
+      let lng: number;
+
       const { courierLocationTracking } = await import('@/services/courierLocationService');
       const currentLocation = await courierLocationTracking.getCurrentLocation();
-      if (!currentLocation) {
+
+      if (currentLocation) {
+        lat = currentLocation.coords.latitude;
+        lng = currentLocation.coords.longitude;
+      } else if (fallbackPosition) {
+        lat = fallbackPosition.latitude;
+        lng = fallbackPosition.longitude;
+        console.log('[RouteContext] recalculateRoutesViaBackend: usando fallbackPosition');
+      } else {
         console.warn('[RouteContext] No se pudo obtener ubicación para recalcular');
         return;
       }
 
       const optimizedRoute = await getOptimizedRoute(carrierId, {
-        lat: currentLocation.coords.latitude,
-        lng: currentLocation.coords.longitude,
+        lat,
+        lng,
       });
 
       const freshDeliveries = await getDeliveries();
