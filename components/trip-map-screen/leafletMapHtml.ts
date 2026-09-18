@@ -51,7 +51,7 @@ export const LEAFLET_MAP_HTML = `
             var color = wp.isFirstInRoute ? '#E53935' : wp.isLastInRoute ? '#E53935' : '#FFFFFF';
             var textColor = wp.isFirstInRoute ? '#FFFFFF' : wp.isLastInRoute ? '#FFFFFF' : '#111827';
             var badgeHtml = wp.count > 1
-              ? '<div style="position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:#E53935;color:#FFFFFF;font-weight:700;font-size:10px;border:2px solid #FFFFFF;display:flex;align-items:center;justify-content:center;z-index:1">' + wp.count + '</div>'
+              ? '<div style="position:absolute;top:-12px;right:-12px;min-width:15px;height:20px;padding:0 4px;border-radius:10px;background:#E53935;color:#FFFFFF;font-weight:700;font-size:10px;border:2px solid #FFFFFF;display:flex;align-items:center;justify-content:center;z-index:1">' + wp.count + '</div>'
               : '';
             var icon = L.divIcon({
               className: 'custom-marker',
