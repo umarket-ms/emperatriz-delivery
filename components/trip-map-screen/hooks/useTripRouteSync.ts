@@ -36,6 +36,11 @@ export function useTripRouteSync(params: UseTripRouteSyncParams): void {
       return;
     }
     if (groupedWaypoints.length === 0) {
+      sendToMapRef.current({
+        type: "INIT_ROUTE",
+        segmentCoordinates: [],
+        waypoints: [],
+      });
       if (currentPosition) {
         sendToMapRef.current({
           type: "SET_VIEW",

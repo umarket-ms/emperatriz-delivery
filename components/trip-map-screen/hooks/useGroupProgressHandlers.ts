@@ -163,9 +163,18 @@ export function useGroupProgressHandlers({
       setIsTraveling(true);
     }
 
+    const terminalStatuses: string[] = [
+      IDeliveryStatus.DELIVERED,
+      IDeliveryStatus.CANCELLED,
+      IDeliveryStatus.RETURNED,
+      IDeliveryStatus.SCHEDULED,
+    ];
+
     const filteredDeliveries = freshDeliveries.filter(
       (d) => {
         if (!d) return false;
+        const status = deliveryStatusOverrides.get(d.id) ?? d.deliveryStatus?.title;
+        if (status && terminalStatuses.includes(status)) return false;
         const isDelivery = d.type === 'DELIVERY';
         const lat = isDelivery ? d.destinyNominatimLat : d.originNominatimLat;
         const lng = isDelivery ? d.destinyNominatimLng : d.originNominatimLng;
@@ -174,7 +183,7 @@ export function useGroupProgressHandlers({
     );
     const nullableCount = freshDeliveries.length - filteredDeliveries.length;
     if (nullableCount > 0) {
-      console.log("[TripMapScreen][DEBUG] handleGroupCompleted: entregas sin coordenadas nominatim filtradas:", nullableCount);
+      console.log("[TripMapScreen][DEBUG] handleGroupCompleted: entregas filtradas (terminal/sin coordenadas):", nullableCount);
     }
     setTripDeliveries(filteredDeliveries);
 
@@ -183,12 +192,6 @@ export function useGroupProgressHandlers({
       return;
     }
 
-    const terminalStatuses: string[] = [
-      IDeliveryStatus.DELIVERED,
-      IDeliveryStatus.CANCELLED,
-      IDeliveryStatus.RETURNED,
-      IDeliveryStatus.SCHEDULED,
-    ];
     if (!terminalStatuses.includes(newStatus)) return;
 
     dispatch({ type: "ADD_COMPLETED_IDS", ids });
@@ -202,7 +205,7 @@ export function useGroupProgressHandlers({
     ) {
       setTimeout(() => dispatch({ type: "SET_TARGET_INDEX", index: currentTargetGroupIndex + 1 }), 0);
     }
-  }, [dispatch, setIsTraveling, setTripDeliveries, groupedWaypoints, currentTargetGroupIndex]);
+  }, [dispatch, setIsTraveling, setTripDeliveries, groupedWaypoints, currentTargetGroupIndex, deliveryStatusOverrides]);
 
   return { handleProgressGroup, handleGroupCompleted };
 }

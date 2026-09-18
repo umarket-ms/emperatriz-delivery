@@ -201,7 +201,9 @@ export const updateDeliveryStatusBatch = (
   });
   if (imageUris && imageUris.length > 0) {
     const formData = new FormData();
-    formData.append("ids", JSON.stringify(ids));
+    ids.forEach((id) => {
+      formData.append("ids", String(id));
+    });
     formData.append("status", status.toString());
     if (note) formData.append("note", note);
     if (amountPaid !== undefined)

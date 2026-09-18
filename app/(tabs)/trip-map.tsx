@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useReducer } from "react";
-import { View, ActivityIndicator, Pressable, StyleSheet } from "react-native";
+import { View, Text, ActivityIndicator, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { CustomColors } from "@/constants/CustomColors";
@@ -371,6 +371,18 @@ export default function TripMapScreen() {
             onToggle={() => setIsManualSimulation(!isManualSimulation)}
           />
         )}
+
+        <Pressable
+          style={styles.refreshAssignmentsButton}
+          onPress={() => {
+            if (allDeliveries && allDeliveries.length > 0 && currentPosition) {
+              startRoutes(allDeliveries, currentPosition);
+            }
+          }}
+          disabled={!allDeliveries || allDeliveries.length === 0 || !currentPosition || tripLoading}
+        >
+          <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>
+        </Pressable>
 
         <View style={styles.controlsContainer}>
           <MapControls

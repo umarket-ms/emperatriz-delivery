@@ -168,12 +168,12 @@ export const styles = StyleSheet.create({
   },
   simulationButton: {
     position: "absolute",
-    top: 70,
+    top: 124,
     right: 16,
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: CustomColors.quaternary,
+    backgroundColor: CustomColors.textLight,
     alignItems: "center",
     justifyContent: "center",
     boxShadow: '0px 2px 4px rgba(17,24,39,0.35)',
@@ -185,6 +185,23 @@ export const styles = StyleSheet.create({
   simulationButtonText: {
     fontSize: 18,
     lineHeight: 22,
+  },
+  refreshAssignmentsButton: {
+    position: "absolute",
+    top: 70,
+    right: 16,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: CustomColors.textLight,
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: '0px 2px 4px rgba(17,24,39,0.35)',
+    zIndex: 10,
+  },
+  refreshAssignmentsButtonText: {
+    fontSize: 20,
+    lineHeight: 24,
   },
   loadingOverlay: {
     position: "absolute",
