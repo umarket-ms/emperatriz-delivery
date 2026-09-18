@@ -9,7 +9,6 @@ import { useRouteContext } from "@/contexts/RouteContext";
 import RouteInfoPanel from "@/components/RouteInfoPanel";
 import AssignmentDetailsModal from "@/components/AssignmentDetailsModal";
 import GroupStatusUpdateModal from "@/components/status-update/GroupStatusUpdateModal";
-import { useRouter } from "expo-router";
 import { styles } from "@/components/trip-map-screen/tripMapStyles";
 import { Coordinate } from "@/components/trip-map-screen/types";
 import { useTripDerivedData } from "@/components/trip-map-screen/hooks/useTripDerivedData";
@@ -27,14 +26,12 @@ import SimulationControls from "@/components/trip-map-screen/components/Simulati
 import CenterLocationButton from "@/components/trip-map-screen/components/CenterLocationButton";
 import TripMapLoadingState from "@/components/trip-map-screen/components/TripMapLoadingState";
 import TripMapErrorState from "@/components/trip-map-screen/components/TripMapErrorState";
-import TripMapEmptyState from "@/components/trip-map-screen/components/TripMapEmptyState";
 import ElementsBottomSheet from "@/components/ElementsBottomSheet";
 import type { ElementsBottomSheetMethods } from "@/components/ElementsBottomSheet";
 import { Ionicons } from "@expo/vector-icons";
 import { useDelivery } from "@/context/DeliveryContext";
 
 export default function TripMapScreen() {
-  const router = useRouter();
   const {
     tripData,
     tripLoading,
@@ -148,7 +145,6 @@ export default function TripMapScreen() {
     setTripDeliveries,
     groupedWaypoints,
     tripDeliveries,
-    router,
     setGroupStatusModalParams,
     setGroupStatusModalVisible,
   });
@@ -311,9 +307,22 @@ export default function TripMapScreen() {
     return (
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.container}>
-          <TripMapEmptyState />
+          <TripMapView webViewRef={webViewRef} onMessage={handleWebViewMessage} />
+
+          <CenterLocationButton
+            currentPosition={currentPosition}
+            onCenter={() => {
+              if (!currentPosition) return;
+              sendToMap({
+                type: "SET_VIEW",
+                latitude: currentPosition.latitude,
+                longitude: currentPosition.longitude,
+                zoom: 16,
+              });
+            }}
+          />
+
           <ElementsBottomSheet ref={bottomSheetRef} />
-          {/* FAB for Elements sheet */}
           <Pressable style={fabStyles.fab} onPress={handleOpenSheet}>
             <Ionicons name="list" size={24} color={CustomColors.white} />
           </Pressable>

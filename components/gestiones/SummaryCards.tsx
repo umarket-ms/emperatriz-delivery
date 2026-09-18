@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View as RNView } from 'react-native';
 import { Text } from '@/components/Themed';
 import { CustomColors } from '@/constants/CustomColors';
-import { useCurrency } from '@/core/hooks/useCurrency';
+import { formatMoney } from '@/utils/currency';
 
 interface SummaryCardsProps {
   totalPendiente: number;
@@ -12,24 +12,23 @@ interface SummaryCardsProps {
 }
 
 export function SummaryCards({ totalPendiente, totalVencidas, totalPorVencer, totalVigentes }: SummaryCardsProps) {
-  const { formatPrice } = useCurrency();
   return (
     <RNView style={styles.cardsGrid}>
       <RNView style={styles.card}>
         <Text style={styles.cardLabel}>Total por pagar</Text>
-        <Text style={styles.cardValue}>{formatPrice(totalPendiente)}</Text>
+        <Text style={styles.cardValue}>{formatMoney(totalPendiente)}</Text>
       </RNView>
       <RNView style={[styles.card, styles.cardOverdue]}>
         <Text style={styles.cardLabel}>Vencidas</Text>
-        <Text style={[styles.cardValue, { color: CustomColors.error }]}>{formatPrice(totalVencidas)}</Text>
+        <Text style={[styles.cardValue, { color: CustomColors.error }]}>{formatMoney(totalVencidas)}</Text>
       </RNView>
       <RNView style={[styles.card, styles.cardDueSoon]}>
         <Text style={styles.cardLabel}>Por vencer</Text>
-        <Text style={[styles.cardValue, { color: CustomColors.warning }]}>{formatPrice(totalPorVencer)}</Text>
+        <Text style={[styles.cardValue, { color: CustomColors.warning }]}>{formatMoney(totalPorVencer)}</Text>
       </RNView>
       <RNView style={[styles.card, styles.cardCurrent]}>
         <Text style={styles.cardLabel}>Vigentes</Text>
-        <Text style={[styles.cardValue, { color: CustomColors.success }]}>{formatPrice(totalVigentes)}</Text>
+        <Text style={[styles.cardValue, { color: CustomColors.success }]}>{formatMoney(totalVigentes)}</Text>
       </RNView>
     </RNView>
   );

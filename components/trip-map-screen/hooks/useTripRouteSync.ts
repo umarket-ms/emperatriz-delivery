@@ -35,15 +35,20 @@ export function useTripRouteSync(params: UseTripRouteSyncParams): void {
       );
       return;
     }
+    if (groupedWaypoints.length === 0) {
+      if (currentPosition) {
+        sendToMapRef.current({
+          type: "SET_VIEW",
+          latitude: currentPosition.latitude,
+          longitude: currentPosition.longitude,
+          zoom: 15,
+        });
+      }
+      return;
+    }
     if (routeCoordinates.length === 0) {
       console.log(
         "[useTripRouteSync][DEBUG] route sync: routeCoordinates vacío, skipping",
-      );
-      return;
-    }
-    if (groupedWaypoints.length === 0) {
-      console.log(
-        "[useTripRouteSync][DEBUG] route sync: groupedWaypoints vacío, skipping",
       );
       return;
     }
@@ -125,7 +130,7 @@ export function useTripRouteSync(params: UseTripRouteSyncParams): void {
       waypoints,
       targetGroupIndex: currentTargetGroupIndex,
     });
-  }, [mapVersion, routeCoordinates, groupedWaypoints, currentTargetGroupIndex]);
+  }, [mapVersion, routeCoordinates, groupedWaypoints, currentTargetGroupIndex, currentPosition]);
 
   // UPDATE_POSITION
   useEffect(() => {

@@ -55,7 +55,6 @@ export interface GroupProgressHandlersParams {
   setTripDeliveries: (deliveries: DeliveryItemAdapter[]) => void;
   groupedWaypoints: WaypointGroup[];
   tripDeliveries: DeliveryItemAdapter[];
-  router: { back: () => void };
   setGroupStatusModalParams: React.Dispatch<React.SetStateAction<{
     ids: string[];
     assignmentType: AssignmentType;
@@ -73,7 +72,6 @@ export function useGroupProgressHandlers({
   setTripDeliveries,
   groupedWaypoints,
   tripDeliveries,
-  router,
   setGroupStatusModalParams,
   setGroupStatusModalVisible,
 }: GroupProgressHandlersParams): GroupProgressHandlersResult {
@@ -181,8 +179,7 @@ export function useGroupProgressHandlers({
     setTripDeliveries(filteredDeliveries);
 
     if (filteredDeliveries.length === 0) {
-      console.log("[TripMapScreen] No quedan entregas activas, volviendo a la pantalla principal");
-      router.back();
+      console.log("[TripMapScreen] No quedan entregas activas, mostrando mapa vacío");
       return;
     }
 
@@ -205,7 +202,7 @@ export function useGroupProgressHandlers({
     ) {
       setTimeout(() => dispatch({ type: "SET_TARGET_INDEX", index: currentTargetGroupIndex + 1 }), 0);
     }
-  }, [dispatch, setIsTraveling, setTripDeliveries, router, groupedWaypoints, currentTargetGroupIndex]);
+  }, [dispatch, setIsTraveling, setTripDeliveries, groupedWaypoints, currentTargetGroupIndex]);
 
   return { handleProgressGroup, handleGroupCompleted };
 }

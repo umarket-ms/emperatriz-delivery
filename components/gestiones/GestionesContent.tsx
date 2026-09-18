@@ -17,7 +17,7 @@ import { useToast } from 'react-native-toast-notifications';
 import { ProviderCard, type FacturaCXP, type ProveedorRow } from './ProviderCard';
 import { SummaryCards } from './SummaryCards';
 import { ApiEndpoints } from '@/utils/api-endpoints';
-import { useCurrency } from '@/core/hooks/useCurrency';
+import { formatMoney } from '@/utils/currency';
 
 type FilterValue = 'todas' | 'vencidas' | 'por_vencer' | 'vigentes';
 
@@ -349,7 +349,6 @@ interface CreditNoteDialogProps {
 }
 
 function CreditNoteDialog({ visible, provider, amount, description, onAmountChange, onDescChange, onSubmit, onClose, isSaving }: CreditNoteDialogProps) {
-  const { formatPrice } = useCurrency();
   return (
     <Modal visible={visible} transparent animationType="fade">
       <RNView style={styles.modalOverlay}>
@@ -358,7 +357,7 @@ function CreditNoteDialog({ visible, provider, amount, description, onAmountChan
           {provider && (
             <RNView style={styles.modalProviderInfo}>
               <Text style={styles.modalProviderName}>{provider.provider}</Text>
-              <Text style={styles.modalProviderBalance}>Saldo pendiente: {formatPrice(provider.saldoPendiente)}</Text>
+              <Text style={styles.modalProviderBalance}>Saldo pendiente: {formatMoney(provider.saldoPendiente)}</Text>
             </RNView>
           )}
           <Text style={styles.inputLabel}>Monto *</Text>
@@ -389,7 +388,6 @@ interface PayAllConfirmDialogProps {
 }
 
 function PayAllConfirmDialog({ visible, pendingCount, totalPendiente, onConfirm, onClose, isSaving }: PayAllConfirmDialogProps) {
-  const { formatPrice } = useCurrency();
   return (
     <Modal visible={visible} transparent animationType="fade">
       <RNView style={styles.modalOverlay}>
@@ -404,7 +402,7 @@ function PayAllConfirmDialog({ visible, pendingCount, totalPendiente, onConfirm,
           <RNView style={styles.summaryBox}>
             <Text style={styles.summaryText}>
               <Text style={{ fontWeight: 'bold' }}>Facturas pendientes:</Text> {pendingCount}{'\n'}
-              <Text style={{ fontWeight: 'bold' }}>Total a pagar:</Text> {formatPrice(totalPendiente)}
+              <Text style={{ fontWeight: 'bold' }}>Total a pagar:</Text> {formatMoney(totalPendiente)}
             </Text>
           </RNView>
           <RNView style={styles.modalActions}>
