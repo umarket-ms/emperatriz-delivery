@@ -1,7 +1,6 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState, useRef } from "react";
+import React, { forwardRef, useCallback, useImperativeHandle, useMemo, useState, useRef } from "react";
 import {
   StyleSheet,
-  Alert,
   Pressable,
   Text,
   ScrollView,
@@ -12,23 +11,18 @@ import {
   PanResponder,
 } from "react-native";
 import { CustomColors } from "@/constants/CustomColors";
-import { useDelivery } from "@/context/DeliveryContext";
-import { AssignmentType } from "@/utils/enum";
-import { DeliveryItemAdapter } from "@/interfaces/delivery/deliveryAdapters";
-import GroupStatusUpdateModal from "@/components/status-update/GroupStatusUpdateModal";
 import { Ionicons } from "@expo/vector-icons";
 import EarningsCard from "@/components/ganancias/EarningsCard";
 import TopRoute from "@/components/ganancias/TopRoute";
 import RecentDeliveries from "@/components/ganancias/RecentDeliveries";
 import PayoutHistory from "@/components/ganancias/PayoutHistory";
 import StatsCharts from "@/components/ganancias/StatsCharts";
-import { DeliveryItemList } from "@/components/delivery-items/DeliveryItemList";
 import { useGanancias } from "@/core/hooks/useGanancias";
 import { GestionesContent } from "@/components/gestiones/GestionesContent";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-const BASE_TABS = ["Entregas", "Ganancias", "Pagos", "Estadísticas"] as const;
+const BASE_TABS = ["Ganancias", "Pagos", "Estadísticas"] as const;
 type Tab = (typeof BASE_TABS)[number] | "Gestiones";
 
 // ─── Segmented Control ──────────────────────────────────────────────────────
@@ -123,16 +117,8 @@ interface ElementsBottomSheetProps {}
 const ElementsBottomSheet = forwardRef<ElementsBottomSheetMethods, ElementsBottomSheetProps>(
   ({ }, ref) => {
     const [isVisible, setIsVisible] = useState(false);
-    const [activeTab, setActiveTab] = useState<Tab>("Entregas");
+    const [activeTab, setActiveTab] = useState<Tab>("Ganancias");
     const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-
-    const {
-      deliveries,
-      loading,
-      refreshing,
-      onRefresh,
-      fetchDeliveries,
-    } = useDelivery();
 
     const {
       earnings,
@@ -146,26 +132,6 @@ const ElementsBottomSheet = forwardRef<ElementsBottomSheetMethods, ElementsBotto
       refresh: refreshGanancias,
     } = useGanancias();
 
-    const [groupStatusModalVisible, setGroupStatusModalVisible] = useState(false);
-    const [groupStatusModalParams, setGroupStatusModalParams] = useState<{
-      ids: string[];
-      assignmentType: AssignmentType;
-      groupTitle: string;
-      currentStatus: string;
-      totalAmount: number;
-    } | null>(null);
-
-    const handleDeliveryItemPress = (delivery: DeliveryItemAdapter) => {
-      setGroupStatusModalParams({
-        ids: [delivery.id],
-        assignmentType: delivery.type,
-        groupTitle: `${delivery.type === AssignmentType.PICKUP ? "Recogida" : "Entrega"}: ${delivery.client}`,
-        currentStatus: delivery.deliveryStatus?.title || "",
-        totalAmount: Math.ceil(Number(delivery.deliveryCostInLocalCurrency + delivery.amountToBeCharged) / 5) * 5,
-      });
-      setGroupStatusModalVisible(true);
-    };
-
     const isAdmin = true;
 
     const visibleTabs = useMemo(() => {
@@ -176,12 +142,11 @@ const ElementsBottomSheet = forwardRef<ElementsBottomSheetMethods, ElementsBotto
       return base;
     }, [isAdmin]);
 
-    const effectiveActiveTab = visibleTabs.includes(activeTab) ? activeTab : "Entregas";
+    const effectiveActiveTab = visibleTabs.includes(activeTab) ? activeTab : "Ganancias";
 
     const handleRefresh = useCallback(() => {
-      fetchDeliveries();
       refreshGanancias();
-    }, [fetchDeliveries, refreshGanancias]);
+    }, [refreshGanancias]);
 
     const present = useCallback(() => {
       setIsVisible(true);
@@ -252,7 +217,7 @@ const ElementsBottomSheet = forwardRef<ElementsBottomSheetMethods, ElementsBotto
 
             {/* Header */}
             <RNView style={styles.header}>
-              <Text style={styles.headerTitle}>Elementos</Text>
+              {/* <Text style={styles.headerTitle}>Elementos</Text> */}
               <Pressable style={styles.refreshButton} onPress={handleRefresh}>
                 <Ionicons name="refresh-outline" size={20} color={CustomColors.white} />
               </Pressable>
@@ -260,17 +225,8 @@ const ElementsBottomSheet = forwardRef<ElementsBottomSheetMethods, ElementsBotto
 
             <SegmentedTabs tabs={visibleTabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
-            {effectiveActiveTab === "Entregas" ? (
-              <DeliveryItemList
-                data={deliveries}
-                loading={loading}
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                onItemPress={handleDeliveryItemPress}
-                contentContainerStyle={{ paddingBottom: 120 }}
-                style={{ flex: 1 }}
-              />
-            ) : effectiveActiveTab === "Gestiones" ? (
+            {
+            effectiveActiveTab === "Gestiones" ? (
               <GestionesContent />
             ) : (
               <ScrollView
@@ -289,24 +245,6 @@ const ElementsBottomSheet = forwardRef<ElementsBottomSheetMethods, ElementsBotto
 
                 <RNView style={{ height: 120 }} />
               </ScrollView>
-            )}
-
-            {groupStatusModalParams && (
-              <GroupStatusUpdateModal
-                key={groupStatusModalParams.currentStatus}
-                visible={groupStatusModalVisible}
-                onClose={() => setGroupStatusModalVisible(false)}
-                onSuccess={(newStatus) => {
-                  setGroupStatusModalVisible(false);
-                  fetchDeliveries();
-                  Alert.alert("Estado actualizado", `Nuevo estado: ${newStatus}`);
-                }}
-                ids={groupStatusModalParams.ids}
-                assignmentType={groupStatusModalParams.assignmentType}
-                groupTitle={groupStatusModalParams.groupTitle}
-                currentStatus={groupStatusModalParams.currentStatus}
-                totalAmount={groupStatusModalParams.totalAmount}
-              />
             )}
           </Animated.View>
         </RNView>
