@@ -13,7 +13,6 @@ import {
 import { CustomColors } from "@/constants/CustomColors";
 import { Ionicons } from "@expo/vector-icons";
 import EarningsCard from "@/components/ganancias/EarningsCard";
-import TopRoute from "@/components/ganancias/TopRoute";
 import RecentDeliveries from "@/components/ganancias/RecentDeliveries";
 import PayoutHistory from "@/components/ganancias/PayoutHistory";
 import StatsCharts from "@/components/ganancias/StatsCharts";
@@ -66,8 +65,7 @@ const tabStyles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: CustomColors.backgroundDark,
     borderRadius: 12,
-    marginHorizontal: 12,
-    marginTop: 12,
+    marginHorizontal: 0,
     padding: 3,
     position: "relative",
     overflow: "hidden",
@@ -126,7 +124,6 @@ const ElementsBottomSheet = forwardRef<ElementsBottomSheetMethods, ElementsBotto
       monthlyStats,
       weeklyStats,
       deliveryStats,
-      topRoute,
       recentDeliveries,
       isLoading: gananciaLoading,
       refresh: refreshGanancias,
@@ -215,28 +212,36 @@ const ElementsBottomSheet = forwardRef<ElementsBottomSheetMethods, ElementsBotto
               <RNView style={styles.handle} />
             </RNView>
 
-            {/* Header */}
-            <RNView style={styles.header}>
-              {/* <Text style={styles.headerTitle}>Elementos</Text> */}
+            {/* Tabs + Refresh Button row */}
+            <RNView style={styles.tabsRow}>
+              <RNView style={styles.tabsFlex}>
+                <SegmentedTabs tabs={visibleTabs} activeTab={activeTab} onTabChange={setActiveTab} />
+              </RNView>
               <Pressable style={styles.refreshButton} onPress={handleRefresh}>
                 <Ionicons name="refresh-outline" size={20} color={CustomColors.white} />
               </Pressable>
             </RNView>
 
-            <SegmentedTabs tabs={visibleTabs} activeTab={activeTab} onTabChange={setActiveTab} />
-
+            <RNView style={styles.contentArea}>
             {
             effectiveActiveTab === "Gestiones" ? (
-              <GestionesContent />
+              <ScrollView
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+              >
+                <GestionesContent />
+                <RNView style={{ height: 120 }} />
+              </ScrollView>
             ) : (
               <ScrollView
+                style={{ flex: 1 }}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
               >
                 {effectiveActiveTab === "Ganancias" && (
                   <>
                     <EarningsCard earnings={earnings} deliveries={deliveryStats} isLoading={gananciaLoading} />
-                    <TopRoute route={topRoute} isLoading={gananciaLoading} />
                     <RecentDeliveries items={recentDeliveries} isLoading={gananciaLoading} />
                   </>
                 )}
@@ -246,6 +251,7 @@ const ElementsBottomSheet = forwardRef<ElementsBottomSheetMethods, ElementsBotto
                 <RNView style={{ height: 120 }} />
               </ScrollView>
             )}
+            </RNView>
           </Animated.View>
         </RNView>
       </Modal>
@@ -267,7 +273,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   sheetContainer: {
-    height: SCREEN_HEIGHT * 0.75,
+    height: SCREEN_HEIGHT * 0.90,
     backgroundColor: CustomColors.backgroundDarkest,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
@@ -283,18 +289,16 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: CustomColors.border,
   },
-  header: {
+  tabsRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingRight: 12,
+    paddingLeft: 12,
+    paddingTop: 12,
+    gap: 8,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: CustomColors.white,
-    letterSpacing: -0.5,
+  tabsFlex: {
+    flex: 1,
   },
   refreshButton: {
     width: 42,
@@ -305,6 +309,9 @@ const styles = StyleSheet.create({
     borderColor: CustomColors.border,
     alignItems: "center",
     justifyContent: "center",
+  },
+  contentArea: {
+    flex: 1,
   },
   scrollContent: {
     paddingTop: 20,

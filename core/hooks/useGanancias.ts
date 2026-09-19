@@ -63,7 +63,7 @@ function gananciasReducer(state: GananciasState, action: GananciasAction): Ganan
 export const useGanancias = () => {
   const [state, dispatch] = useReducer(gananciasReducer, initialState);
   const { isAuthenticated } = useAuth();
-  const wasAuthenticatedRef = useRef(isAuthenticated);
+  const wasAuthenticatedRef = useRef(false);
 
   const fetchData = useCallback(async () => {
     dispatch({ type: 'FETCH_START' });
