@@ -296,6 +296,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           duration: 4000,
         });
       }
+      socketService.disconnect();
       await authService.logout();
       setIsAuthenticated(false);
       setUser(null);

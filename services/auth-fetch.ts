@@ -44,8 +44,6 @@ export const storeRefreshToken = async (refreshToken: string): Promise<void> => 
  */
 export const clearRefreshToken = async (): Promise<void> => {
   try {
-    console.log('[authFetch] clearRefreshToken() llamado');
-    console.log('[authFetch] Stack trace:', new Error().stack);
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
   } catch (error: any) {
     console.error('[authFetch] Error clearing refresh token:', error);

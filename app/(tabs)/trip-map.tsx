@@ -24,6 +24,7 @@ import TripMapView from "@/components/trip-map-screen/components/TripMapView";
 import MapControls from "@/components/trip-map-screen/components/MapControls";
 import SimulationControls from "@/components/trip-map-screen/components/SimulationControls";
 import CenterLocationButton from "@/components/trip-map-screen/components/CenterLocationButton";
+import WebSocketStatusIndicator from "@/components/trip-map-screen/components/WebSocketStatusIndicator";
 import TripMapLoadingState from "@/components/trip-map-screen/components/TripMapLoadingState";
 import TripMapErrorState from "@/components/trip-map-screen/components/TripMapErrorState";
 import ElementsBottomSheet from "@/components/ElementsBottomSheet";
@@ -281,6 +282,7 @@ export default function TripMapScreen() {
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.container}>
           <TripMapLoadingState />
+          <WebSocketStatusIndicator />
           <ElementsBottomSheet ref={bottomSheetRef} />
         </View>
       </SafeAreaView>
@@ -292,6 +294,7 @@ export default function TripMapScreen() {
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.container}>
           <TripMapErrorState message={tripError} />
+          <WebSocketStatusIndicator />
           <ElementsBottomSheet ref={bottomSheetRef} />
           {/* FAB for Elements sheet */}
           <Pressable style={fabStyles.fab} onPress={handleOpenSheet}>
@@ -321,6 +324,22 @@ export default function TripMapScreen() {
               });
             }}
           />
+
+          <WebSocketStatusIndicator />
+
+          <Pressable
+            style={styles.refreshAssignmentsButton}
+            onPress={() => {
+              if (allDeliveries && allDeliveries.length > 0 && currentPosition) {
+                startRoutes(allDeliveries, currentPosition);
+              } else if (currentPosition) {
+                recalculateRoutesViaBackend(currentPosition);
+              }
+            }}
+            disabled={!currentPosition || tripLoading}
+          >
+            <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>
+          </Pressable>
 
           <ElementsBottomSheet ref={bottomSheetRef} />
           <Pressable style={fabStyles.fab} onPress={handleOpenSheet}>
@@ -372,14 +391,18 @@ export default function TripMapScreen() {
           />
         )}
 
+        <WebSocketStatusIndicator />
+
         <Pressable
           style={styles.refreshAssignmentsButton}
           onPress={() => {
             if (allDeliveries && allDeliveries.length > 0 && currentPosition) {
               startRoutes(allDeliveries, currentPosition);
+            } else if (currentPosition) {
+              recalculateRoutesViaBackend(currentPosition);
             }
           }}
-          disabled={!allDeliveries || allDeliveries.length === 0 || !currentPosition || tripLoading}
+          disabled={!currentPosition || tripLoading}
         >
           <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>
         </Pressable>
@@ -411,8 +434,9 @@ export default function TripMapScreen() {
         <ElementsBottomSheet ref={bottomSheetRef} />
 
         {tripLoading && tripData && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={CustomColors.primary} />
+          <View style={styles.processingBanner}>
+            <ActivityIndicator size="small" color={CustomColors.textLight} />
+            <Text style={styles.processingBannerText}>Actualizando ruta...</Text>
           </View>
         )}
 
