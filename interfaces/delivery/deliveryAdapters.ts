@@ -29,6 +29,7 @@ export interface DeliveryItemAdapter {
   enterprise: string;
   deliveryVerificationCode?: string;
   isGroup: boolean;
+  completedAt?: Date;
 }
 
 // Interfaz para representar un grupo de entregas
@@ -68,6 +69,7 @@ export function adaptDeliveriesToAdapter(deliveries: IDeliveryAssignmentEntity[]
       deliveryAssignmentDetails: (delivery as any).deliveryAssignmentDetails,
       enterprise: delivery.enterprise.title,
       deliveryVerificationCode: delivery.deliveryVerificationCode,
+      completedAt: delivery.completedAt,
     }));    
   } catch (error:any) {
     console.log('Error al adaptar entregas:', error);
