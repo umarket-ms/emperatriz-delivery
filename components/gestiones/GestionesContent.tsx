@@ -17,6 +17,7 @@ import { useToast } from 'react-native-toast-notifications';
 import { ProviderCard, type FacturaCXP, type ProveedorRow } from './ProviderCard';
 import { SummaryCards } from './SummaryCards';
 import { ApiEndpoints } from '@/utils/api-endpoints';
+import { formatMoney } from '@/utils/currency';
 
 type FilterValue = 'todas' | 'vencidas' | 'por_vencer' | 'vigentes';
 
@@ -41,10 +42,6 @@ function aggregateByProveedor(data: FacturaCXP[]): ProveedorRow[] {
   }
 
   return Array.from(map.values()).sort((a, b) => b.saldoPendiente - a.saldoPendiente);
-}
-
-function formatCurrency(value: number): string {
-  return value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatDate(dateStr: string): string {
@@ -360,7 +357,7 @@ function CreditNoteDialog({ visible, provider, amount, description, onAmountChan
           {provider && (
             <RNView style={styles.modalProviderInfo}>
               <Text style={styles.modalProviderName}>{provider.provider}</Text>
-              <Text style={styles.modalProviderBalance}>Saldo pendiente: {formatCurrency(provider.saldoPendiente)}</Text>
+              <Text style={styles.modalProviderBalance}>Saldo pendiente: {formatMoney(provider.saldoPendiente)}</Text>
             </RNView>
           )}
           <Text style={styles.inputLabel}>Monto *</Text>
@@ -405,7 +402,7 @@ function PayAllConfirmDialog({ visible, pendingCount, totalPendiente, onConfirm,
           <RNView style={styles.summaryBox}>
             <Text style={styles.summaryText}>
               <Text style={{ fontWeight: 'bold' }}>Facturas pendientes:</Text> {pendingCount}{'\n'}
-              <Text style={{ fontWeight: 'bold' }}>Total a pagar:</Text> {formatCurrency(totalPendiente)}
+              <Text style={{ fontWeight: 'bold' }}>Total a pagar:</Text> {formatMoney(totalPendiente)}
             </Text>
           </RNView>
           <RNView style={styles.modalActions}>

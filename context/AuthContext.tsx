@@ -117,9 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
               if (stillHasToken) {
                 // Token exists but both refresh and whoami failed — likely network issue.
-                // Keep the user in a "connected" state; the app will retry on next interaction.
-                console.log('[AuthContext] Refresh y whoami fallaron pero token existe, probablemente error de red — manteniendo sesión');
-                setIsAuthenticated(true);
+                // Don't set isAuthenticated without carrier data — let the user retry
+                console.log('[AuthContext] Token existe pero no se pudieron obtener datos del servidor, manteniendo sesión...');
                 // Try to connect WebSocket anyway — it may succeed
                 socketService.connect().catch(() => {});
               } else {
@@ -226,6 +225,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
+      // Validar que el carrier esté presente
+      if (!result.data.carrier) {
+        return {
+          success: false,
+          message: 'No se encontró información de mensajero asociada a tu cuenta. Contacte al administrador.',
+        };
+      }
+
       // Actualizar estado
       setIsAuthenticated(true);
       setUser(result.data.user);
@@ -289,6 +296,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           duration: 4000,
         });
       }
+      socketService.disconnect();
       await authService.logout();
       setIsAuthenticated(false);
       setUser(null);

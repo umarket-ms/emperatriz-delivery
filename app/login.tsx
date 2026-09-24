@@ -28,6 +28,7 @@ import { router } from 'expo-router';
 import { ApiEndpoints } from '@/utils/api-endpoints';
 
 const REMEMBER_EMAIL_KEY = 'remembered_email';
+const REMEMBER_PASSWORD_KEY = 'remembered_password';
 const REMEMBER_ME_KEY = 'remember_me_enabled';
 
 export default function LoginScreen() {
@@ -76,12 +77,14 @@ export default function LoginScreen() {
     useEffect(() => {
         const loadRememberedEmail = async () => {
             try {
-                const [savedEmail, savedRememberMe] = await Promise.all([
+                const [savedEmail, savedPassword, savedRememberMe] = await Promise.all([
                     AsyncStorage.getItem(REMEMBER_EMAIL_KEY),
+                    AsyncStorage.getItem(REMEMBER_PASSWORD_KEY),
                     AsyncStorage.getItem(REMEMBER_ME_KEY),
                 ]);
                 if (savedRememberMe === 'true' && savedEmail) {
                     setEmail(savedEmail);
+                    setPassword(savedPassword || '');
                     setRememberMe(true);
                 }
             } catch {}
@@ -153,9 +156,11 @@ export default function LoginScreen() {
                 // Guardar email recordado si "Recuérdame" está activado
                 if (rememberMe) {
                     await AsyncStorage.setItem(REMEMBER_EMAIL_KEY, email);
+                    await AsyncStorage.setItem(REMEMBER_PASSWORD_KEY, password);
                     await AsyncStorage.setItem(REMEMBER_ME_KEY, 'true');
                 } else {
                     await AsyncStorage.removeItem(REMEMBER_EMAIL_KEY);
+                    await AsyncStorage.removeItem(REMEMBER_PASSWORD_KEY);
                     await AsyncStorage.removeItem(REMEMBER_ME_KEY);
                 }
 
@@ -167,6 +172,13 @@ export default function LoginScreen() {
                 } else if (authData.user && authData.user.mustChangePassword) {
                     // Debe cambiar su contraseña inicial
                     router.replace('/change-initial-password');
+                } else if (authData.user && !authData.carrier) {
+                    // Carrier data is missing -- cannot proceed
+                    Alert.alert(
+                        'Error',
+                        'No se encontró información de mensajero asociada a tu cuenta. Contacte al administrador.',
+                    );
+                    await authService.logout();
                 } else {
                     // Usuario ya verificado, ir a la aplicación principal
                     router.replace('/(tabs)');

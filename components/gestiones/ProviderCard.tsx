@@ -3,6 +3,7 @@ import { StyleSheet, Pressable, View as RNView } from 'react-native';
 import { Text } from '@/components/Themed';
 import { CustomColors } from '@/constants/CustomColors';
 import { Ionicons } from '@expo/vector-icons';
+import { formatMoney } from '@/utils/currency';
 
 export interface FacturaCXP {
   id: number;
@@ -30,10 +31,6 @@ export interface ProveedorRow {
   saldoPendiente: number;
   documentos: number;
   bankInfo: string;
-}
-
-function formatCurrency(value: number): string {
-  return value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatDate(dateStr: string): string {
@@ -68,7 +65,7 @@ export function ProviderCard({ row, isExpanded, invoices, onToggle, onPay, onCre
           <Text style={styles.bankInfo}>{row.bankInfo}</Text>
         </RNView>
         <RNView style={styles.providerMeta}>
-          <Text style={styles.providerBalance}>{formatCurrency(row.saldoPendiente)}</Text>
+          <Text style={styles.providerBalance}>{formatMoney(row.saldoPendiente)}</Text>
           <Text style={styles.providerDocs}>{row.documentos} docs</Text>
         </RNView>
       </Pressable>
@@ -99,9 +96,9 @@ export function ProviderCard({ row, isExpanded, invoices, onToggle, onPay, onCre
                 </RNView>
                 <RNView style={styles.invoiceAmounts}>
                   <Text style={styles.invoiceAmountLabel}>Saldo pendiente:</Text>
-                  <Text style={styles.invoiceAmountValue}>{formatCurrency(inv.outstanding_balance)}</Text>
+                  <Text style={styles.invoiceAmountValue}>{formatMoney(inv.outstanding_balance)}</Text>
                   <Text style={styles.invoiceAmountLabel}>Total:</Text>
-                  <Text style={styles.invoiceAmountValue}>{formatCurrency(inv.total_amount)}</Text>
+                  <Text style={styles.invoiceAmountValue}>{formatMoney(inv.total_amount)}</Text>
                 </RNView>
               </RNView>
             ))

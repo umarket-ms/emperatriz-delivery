@@ -11,7 +11,7 @@ export interface ProgressionState {
 }
 
 export type ProgressionAction =
-  | { type: "RESET" }
+  | { type: "RESET"; startIndex?: number }
   | { type: "SET_TARGET_INDEX"; index: number }
   | { type: "ADD_COMPLETED_IDS"; ids: string[] }
   | { type: "SET_STATUS_OVERRIDES"; updater: (prev: Map<string, string>) => Map<string, string> };
@@ -23,7 +23,7 @@ export function progressionReducer(
   switch (action.type) {
     case "RESET":
       return {
-        currentTargetGroupIndex: 0,
+        currentTargetGroupIndex: action.startIndex ?? 0,
         completedDeliveryIds: new Set(),
         deliveryStatusOverrides: new Map(),
       };
@@ -55,7 +55,6 @@ export interface GroupProgressHandlersParams {
   setTripDeliveries: (deliveries: DeliveryItemAdapter[]) => void;
   groupedWaypoints: WaypointGroup[];
   tripDeliveries: DeliveryItemAdapter[];
-  router: { back: () => void };
   setGroupStatusModalParams: React.Dispatch<React.SetStateAction<{
     ids: string[];
     assignmentType: AssignmentType;
@@ -73,7 +72,6 @@ export function useGroupProgressHandlers({
   setTripDeliveries,
   groupedWaypoints,
   tripDeliveries,
-  router,
   setGroupStatusModalParams,
   setGroupStatusModalVisible,
 }: GroupProgressHandlersParams): GroupProgressHandlersResult {
@@ -99,10 +97,10 @@ export function useGroupProgressHandlers({
     if (type == null) {
       console.log("[TripMapScreen][DEBUG] handleProgressGroup: deliveries[0].type es undefined/null");
     }
-    const totalAmount = deliveries.reduce(
-      (sum, d) => sum + (d.deliveryCost || 0) + (d.amountToBeCharged || 0),
+    const totalAmount = Math.ceil(deliveries.reduce(
+      (sum, d) => sum + (d.deliveryCostInLocalCurrency || d.deliveryCost || 0) + (d.amountToBeCharged || 0),
       0,
-    );
+    ) / 5) * 5;
     const label = type === AssignmentType.PICKUP ? "Recogida" : "Entrega";
     const client = deliveries[0].client;
     if (client == null) {
@@ -165,27 +163,35 @@ export function useGroupProgressHandlers({
       setIsTraveling(true);
     }
 
-    const filteredDeliveries = freshDeliveries.filter(
-      (d) => d && d.additionalDataNominatimLat != null && d.additionalDataNominatimLng != null,
-    );
-    const nullableCount = freshDeliveries.length - filteredDeliveries.length;
-    if (nullableCount > 0) {
-      console.log("[TripMapScreen][DEBUG] handleGroupCompleted: entregas sin additionalDataNominatim filtradas:", nullableCount);
-    }
-    setTripDeliveries(filteredDeliveries);
-
-    if (filteredDeliveries.length === 0) {
-      console.log("[TripMapScreen] No quedan entregas activas, volviendo a la pantalla principal");
-      router.back();
-      return;
-    }
-
     const terminalStatuses: string[] = [
       IDeliveryStatus.DELIVERED,
       IDeliveryStatus.CANCELLED,
       IDeliveryStatus.RETURNED,
       IDeliveryStatus.SCHEDULED,
     ];
+
+    const filteredDeliveries = freshDeliveries.filter(
+      (d) => {
+        if (!d) return false;
+        const status = deliveryStatusOverrides.get(d.id) ?? d.deliveryStatus?.title;
+        if (status && terminalStatuses.includes(status)) return false;
+        const isDelivery = d.type === 'DELIVERY';
+        const lat = isDelivery ? d.destinyNominatimLat : d.originNominatimLat;
+        const lng = isDelivery ? d.destinyNominatimLng : d.originNominatimLng;
+        return lat != null && lng != null;
+      },
+    );
+    const nullableCount = freshDeliveries.length - filteredDeliveries.length;
+    if (nullableCount > 0) {
+      console.log("[TripMapScreen][DEBUG] handleGroupCompleted: entregas filtradas (terminal/sin coordenadas):", nullableCount);
+    }
+    setTripDeliveries(filteredDeliveries);
+
+    if (filteredDeliveries.length === 0) {
+      console.log("[TripMapScreen] No quedan entregas activas, mostrando mapa vacío");
+      return;
+    }
+
     if (!terminalStatuses.includes(newStatus)) return;
 
     dispatch({ type: "ADD_COMPLETED_IDS", ids });
@@ -199,7 +205,7 @@ export function useGroupProgressHandlers({
     ) {
       setTimeout(() => dispatch({ type: "SET_TARGET_INDEX", index: currentTargetGroupIndex + 1 }), 0);
     }
-  }, [dispatch, setIsTraveling, setTripDeliveries, router, groupedWaypoints, currentTargetGroupIndex]);
+  }, [dispatch, setIsTraveling, setTripDeliveries, groupedWaypoints, currentTargetGroupIndex, deliveryStatusOverrides]);
 
   return { handleProgressGroup, handleGroupCompleted };
 }

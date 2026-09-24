@@ -15,17 +15,20 @@ import { AssignmentType } from "@/utils/enum";
 import { CustomColors } from "@/constants/CustomColors";
 import { Capitalize } from "@/utils/capitalize";
 import { openWhatsAppMessage } from "@/utils/whatsapp";
+import { PRODUCT_IMAGE_URL } from "@/services/api";
 
 export interface AssignmentDetailsModalProps {
   visible: boolean;
   onClose: () => void;
   assignment: DeliveryItemAdapter;
+  allAssignments?: DeliveryItemAdapter[];
 }
 
 export default function AssignmentDetailsModal({
   visible,
   onClose,
   assignment,
+  allAssignments,
 }: AssignmentDetailsModalProps) {
   const handleWhatsApp = async () => {
     if (!assignment.phone) return;
@@ -38,12 +41,26 @@ export default function AssignmentDetailsModal({
     Linking.openURL(`tel:${assignment.phone}`);
   };
 
-  const provincia = Capitalize(assignment.provincia?.nombre || "");
-  const municipio = Capitalize(assignment.municipio?.nombre || "");
-  const sector = Capitalize(assignment.origin?.nombre || assignment.destiny?.nombre || "");
-  const direccion = assignment.deliveryAddress || "";
+  // For PICKUP assignments, get product details from the DELIVERY assignment of the same shipment
+  const getDetailsWithImages = () => {
+    if (assignment.deliveryAssignmentDetails && 
+        assignment.deliveryAssignmentDetails.filter(d => d.type === 'PRODUCT').length > 0) {
+      return assignment.deliveryAssignmentDetails;
+    }
+    // If this is a PICKUP, look for the DELIVERY assignment with the same shipmentId
+    if (assignment.type === AssignmentType.PICKUP && allAssignments) {
+      const deliveryAssignment = allAssignments.find(
+        (a) => a.type === AssignmentType.DELIVERY && a.shipmentId === assignment.shipmentId
+      );
+      if (deliveryAssignment?.deliveryAssignmentDetails) {
+        return deliveryAssignment.deliveryAssignmentDetails;
+      }
+    }
+    return assignment.deliveryAssignmentDetails;
+  };
 
-  const fullAddress = `${provincia}${provincia ? ', ' : ''}${municipio}${municipio ? ', ' : ''}${sector}${sector ? ', ' : ''}${direccion}`.trim();
+  const detailsWithImages = getDetailsWithImages();
+  const fullAddress = assignment.deliveryAddress || "";
   const siteType = assignment.type === AssignmentType.PICKUP ? 'RECOGIDA' : 'ENTREGA';
       
   return (
@@ -56,7 +73,7 @@ export default function AssignmentDetailsModal({
       <View style={styles.overlay}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.title}>Detalle de ubicación</Text>
+            <Text style={styles.title}>Detalles de ubicación</Text>
             <Pressable onPress={onClose} style={styles.closeButton}>
               <Text style={styles.closeText}>✕</Text>
             </Pressable>
@@ -93,8 +110,8 @@ export default function AssignmentDetailsModal({
               </Pressable>
             </View>
 
-            {assignment.relatedOrder?.orderDetails &&
-              assignment.relatedOrder.orderDetails.filter(
+            {detailsWithImages &&
+              detailsWithImages.filter(
                 (detail) => detail.type === 'PRODUCT'
               ).length > 0 && (
                 <View style={styles.productsSection}>
@@ -104,12 +121,13 @@ export default function AssignmentDetailsModal({
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.productsScrollContent}
                   >
-                    {assignment.relatedOrder.orderDetails
-                      .reduce<React.ReactNode[]>((acc, detail, idx) => {
-                        if (detail.type !== 'PRODUCT') return acc;
-                        const imageUrl = detail.product?.files?.[0]?.url;
-                        console.log('DETAIL:', detail.product);
-                        acc.push(
+                    {detailsWithImages
+                      .filter((detail) => detail.type === 'PRODUCT')
+                      .map((detail, idx) => {
+                        const imageUrl = detail.imageUrl
+                          ? `${PRODUCT_IMAGE_URL}${detail.imageUrl}`
+                          : null;
+                        return (
                           <View key={detail.id || idx} style={styles.productItem}>
                             {imageUrl ? (
                               <Image
@@ -130,8 +148,7 @@ export default function AssignmentDetailsModal({
                             ) : null}
                           </View>
                         );
-                        return acc;
-                      }, [])}
+                      })}
                   </ScrollView>
                 </View>
               )}

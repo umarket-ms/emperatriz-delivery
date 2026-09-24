@@ -1,14 +1,14 @@
 import React, { useEffect, useState, useRef, useCallback, useReducer } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { CustomColors } from "@/constants/CustomColors";
 import { DeliveryItemAdapter } from "@/interfaces/delivery/deliveryAdapters";
+import { IDeliveryStatus } from "@/interfaces/delivery/deliveryStatus";
 import { useRouteContext } from "@/contexts/RouteContext";
 import RouteInfoPanel from "@/components/RouteInfoPanel";
 import AssignmentDetailsModal from "@/components/AssignmentDetailsModal";
 import GroupStatusUpdateModal from "@/components/status-update/GroupStatusUpdateModal";
-import { useRouter } from "expo-router";
 import { styles } from "@/components/trip-map-screen/tripMapStyles";
 import { Coordinate } from "@/components/trip-map-screen/types";
 import { useTripDerivedData } from "@/components/trip-map-screen/hooks/useTripDerivedData";
@@ -24,20 +24,37 @@ import TripMapView from "@/components/trip-map-screen/components/TripMapView";
 import MapControls from "@/components/trip-map-screen/components/MapControls";
 import SimulationControls from "@/components/trip-map-screen/components/SimulationControls";
 import CenterLocationButton from "@/components/trip-map-screen/components/CenterLocationButton";
+import WebSocketStatusIndicator from "@/components/trip-map-screen/components/WebSocketStatusIndicator";
 import TripMapLoadingState from "@/components/trip-map-screen/components/TripMapLoadingState";
 import TripMapErrorState from "@/components/trip-map-screen/components/TripMapErrorState";
-import TripMapEmptyState from "@/components/trip-map-screen/components/TripMapEmptyState";
+import ElementsBottomSheet from "@/components/ElementsBottomSheet";
+import type { ElementsBottomSheetMethods } from "@/components/ElementsBottomSheet";
+import { Ionicons } from "@expo/vector-icons";
+import { useDelivery } from "@/context/DeliveryContext";
 
 export default function TripMapScreen() {
-  const router = useRouter();
   const {
     tripData,
     tripLoading,
     tripError,
     tripDeliveries,
+    startRoutes,
     recalculateRoutesViaBackend,
     setTripDeliveries,
   } = useRouteContext();
+
+  const { allDeliveries } = useDelivery();
+
+  // ===== Bottom Sheet =====
+  const bottomSheetRef = useRef<ElementsBottomSheetMethods>(null);
+
+  const handleOpenSheet = useCallback(() => {
+    bottomSheetRef.current?.present();
+  }, []);
+
+  const handleCloseSheet = useCallback(() => {
+    bottomSheetRef.current?.dismiss();
+  }, []);
 
   // ===== Derived data from tripData =====
   const { groupedWaypoints, routeCoordinates, totalDistance, totalDuration } =
@@ -55,10 +72,34 @@ export default function TripMapScreen() {
   const tripDataRef = useRef(tripData);
   useEffect(() => {
     if (tripData !== tripDataRef.current) {
-      dispatch({ type: "RESET" });
+      // Compute the correct starting index: find first group with non-terminal delivery
+      let startIndex = 0;
+      if (groupedWaypoints.length > 0) {
+        for (let i = 0; i < groupedWaypoints.length; i++) {
+          const group = groupedWaypoints[i];
+          const hasNonTerminal = group.deliveries?.some(
+            (d) => {
+              const status = progression.deliveryStatusOverrides.get(d.id) ?? d.deliveryStatus?.title;
+              return status !== IDeliveryStatus.DELIVERED &&
+                     status !== IDeliveryStatus.CANCELLED &&
+                     status !== IDeliveryStatus.RETURNED &&
+                     status !== IDeliveryStatus.SCHEDULED;
+            }
+          );
+          if (hasNonTerminal) {
+            startIndex = i;
+            break;
+          }
+          // If all deliveries in this group are terminal, check next group
+          if (i === groupedWaypoints.length - 1) {
+            startIndex = groupedWaypoints.length - 1;
+          }
+        }
+      }
+      dispatch({ type: "RESET", startIndex });
       tripDataRef.current = tripData;
     }
-  }, [tripData]);
+  }, [tripData, groupedWaypoints]);
 
   // ----- Modal state -----
   const {
@@ -105,7 +146,6 @@ export default function TripMapScreen() {
     setTripDeliveries,
     groupedWaypoints,
     tripDeliveries,
-    router,
     setGroupStatusModalParams,
     setGroupStatusModalVisible,
   });
@@ -167,6 +207,21 @@ export default function TripMapScreen() {
     currentTargetGroupIndex: progression.currentTargetGroupIndex,
   });
 
+  // Auto-start routes when GPS position is ready and we have deliveries but no tripData
+  const hasAutoStartedRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoStartedRef.current || tripData || tripLoading || !currentPosition || !allDeliveries || allDeliveries.length === 0) {
+      return;
+    }
+
+    hasAutoStartedRef.current = true;
+    console.log("[TripMapScreen] GPS listo, ejecutando startRoutes...");
+    startRoutes(allDeliveries, currentPosition).catch((err) => {
+      console.log("[TripMapScreen] Auto-start routes failed:", err);
+      // No reset hasAutoStartedRef — prevent infinite retry loop
+    });
+  }, [currentPosition, tripData, tripLoading, allDeliveries, startRoutes]);
+
   // ===== Effects =====
 
   // Initial GPS position: getLastKnownPositionAsync for instant, then getCurrentPositionAsync for accurate
@@ -223,16 +278,76 @@ export default function TripMapScreen() {
   // ===== Render =====
 
   if (tripLoading && !tripData) {
-    return <TripMapLoadingState />;
+    return (
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+        <View style={styles.container}>
+          <TripMapLoadingState />
+          <WebSocketStatusIndicator />
+          <ElementsBottomSheet ref={bottomSheetRef} />
+        </View>
+      </SafeAreaView>
+    );
   }
 
   if (tripError) {
-    return <TripMapErrorState message={tripError} />;
+    return (
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+        <View style={styles.container}>
+          <TripMapErrorState message={tripError} />
+          <WebSocketStatusIndicator />
+          <ElementsBottomSheet ref={bottomSheetRef} />
+          {/* FAB for Elements sheet */}
+          <Pressable style={fabStyles.fab} onPress={handleOpenSheet}>
+            <Ionicons name="list" size={24} color={CustomColors.white} />
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   if (!tripData || groupedWaypoints.length === 0) {
     console.log("[TripMapScreen][DEBUG] render: sin datos - tripData:", !!tripData, "groupedWaypoints:", groupedWaypoints.length);
-    return <TripMapEmptyState />;
+    return (
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+        <View style={styles.container}>
+          <TripMapView webViewRef={webViewRef} onMessage={handleWebViewMessage} />
+
+          <CenterLocationButton
+            currentPosition={currentPosition}
+            onCenter={() => {
+              if (!currentPosition) return;
+              sendToMap({
+                type: "SET_VIEW",
+                latitude: currentPosition.latitude,
+                longitude: currentPosition.longitude,
+                zoom: 16,
+              });
+            }}
+          />
+
+          <WebSocketStatusIndicator />
+
+          <Pressable
+            style={styles.refreshAssignmentsButton}
+            onPress={() => {
+              if (allDeliveries && allDeliveries.length > 0 && currentPosition) {
+                startRoutes(allDeliveries, currentPosition);
+              } else if (currentPosition) {
+                recalculateRoutesViaBackend(currentPosition);
+              }
+            }}
+            disabled={!currentPosition || tripLoading}
+          >
+            <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>
+          </Pressable>
+
+          <ElementsBottomSheet ref={bottomSheetRef} />
+          <Pressable style={fabStyles.fab} onPress={handleOpenSheet}>
+            <Ionicons name="list" size={24} color={CustomColors.white} />
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   // Determine current group status for the control button
@@ -276,6 +391,22 @@ export default function TripMapScreen() {
           />
         )}
 
+        <WebSocketStatusIndicator />
+
+        <Pressable
+          style={styles.refreshAssignmentsButton}
+          onPress={() => {
+            if (allDeliveries && allDeliveries.length > 0 && currentPosition) {
+              startRoutes(allDeliveries, currentPosition);
+            } else if (currentPosition) {
+              recalculateRoutesViaBackend(currentPosition);
+            }
+          }}
+          disabled={!currentPosition || tripLoading}
+        >
+          <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>
+        </Pressable>
+
         <View style={styles.controlsContainer}>
           <MapControls
             currentGroupStatus={currentGroupStatus}
@@ -294,9 +425,18 @@ export default function TripMapScreen() {
           remainingDuration={remainingDuration}
         />
 
+        {/* FAB for Elements sheet */}
+        <Pressable style={fabStyles.fab} onPress={handleOpenSheet}>
+          <Ionicons name="list" size={24} color={CustomColors.white} />
+        </Pressable>
+
+        {/* Elements Bottom Sheet */}
+        <ElementsBottomSheet ref={bottomSheetRef} />
+
         {tripLoading && tripData && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={CustomColors.primary} />
+          <View style={styles.processingBanner}>
+            <ActivityIndicator size="small" color={CustomColors.textLight} />
+            <Text style={styles.processingBannerText}>Actualizando ruta...</Text>
           </View>
         )}
 
@@ -310,6 +450,7 @@ export default function TripMapScreen() {
             setSelectedAssignment(null);
           }}
           assignment={selectedAssignment ?? ({} as DeliveryItemAdapter)}
+          allAssignments={tripDeliveries}
         />
 
         {groupStatusModalParams && (
@@ -331,3 +472,23 @@ export default function TripMapScreen() {
     </SafeAreaView>
   );
 }
+
+const fabStyles = StyleSheet.create({
+  fab: {
+    position: "absolute",
+    bottom: 220,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: CustomColors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 8,
+    shadowColor: CustomColors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 100,
+  },
+});

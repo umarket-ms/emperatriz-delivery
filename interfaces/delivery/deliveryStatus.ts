@@ -72,19 +72,19 @@ export function getStatusColor(status: string): string {
         case IDeliveryStatus.ASSIGNED:
             return CustomColors.info;
         case IDeliveryStatus.SCHEDULED:
-            return CustomColors.neutralLight;
+            return CustomColors.teal;
         case IDeliveryStatus.IN_PROGRESS:
-            return CustomColors.primary;
+            return CustomColors.violet;
         case IDeliveryStatus.DELIVERED:
             return CustomColors.success;
         case IDeliveryStatus.RETURNED:
-            return CustomColors.warning;
+            return CustomColors.orange;
         case IDeliveryStatus.ON_HOLD:
-            return CustomColors.neutralLight;
+            return CustomColors.slate;
         case IDeliveryStatus.CANCELLED:
             return CustomColors.error;
         default:
-            return CustomColors.neutralLight;
+            return CustomColors.slate;
     }
 }
 

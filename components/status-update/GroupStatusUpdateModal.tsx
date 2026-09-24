@@ -25,6 +25,7 @@ import {
   updateDeliveryStatusUnified,
 } from "@/core/actions/delivery.actions";
 import { useDelivery } from "@/context/DeliveryContext";
+import { formatMoney } from "@/utils/currency";
 import {
   adaptDeliveriesToAdapter,
   DeliveryItemAdapter,
@@ -99,6 +100,7 @@ export default function GroupStatusUpdateModal({
   const { paymentMethods } = usePaymentMethods();
   const [showPaymentMethodPicker, setShowPaymentMethodPicker] =
     useState<boolean>(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState<boolean>(false);
 
   const {
     photoUri,
@@ -226,6 +228,18 @@ export default function GroupStatusUpdateModal({
       return;
     }
 
+    // For groups with multiple assignments, show confirmation dialog
+    if (ids.length > 1) {
+      setShowConfirmDialog(true);
+      return;
+    }
+
+    await executeUpdate();
+  };
+
+  const executeUpdate = async () => {
+    if (!selectedStatus) return;
+
     const statusId = getStatusIdFromTitle(selectedStatus);
     if (!statusId) {
       Alert.alert("Error", "No se pudo obtener el ID del estado.", [{ text: "OK" }]);
@@ -350,7 +364,7 @@ export default function GroupStatusUpdateModal({
             <Text style={styles.modalTitle}>Actualizar Estado</Text>
             <Text style={styles.deliveryTitle}>
               {groupTitle}
-              {!isPickupType ? ` · Total: RD$ ${totalAmount}` : ""}
+              {!isPickupType ? ` · Total: ${formatMoney(totalAmount)}` : ""}
             </Text>
             <Text style={styles.currentStatus}>
               Estado actual:{" "}
@@ -460,6 +474,16 @@ export default function GroupStatusUpdateModal({
             )}
           </ScrollView>
 
+          {ids.length > 1 && (
+            <View style={styles.groupWarningBanner}>
+              <Text style={styles.groupWarningIcon}>⚠️</Text>
+              <Text style={styles.groupWarningText}>
+                En este punto tienes varias asignaciones de RECOGIDA Y/O ENTREGA.{' '}
+                Debes recoger y/o entregar todas a la vez.
+              </Text>
+            </View>
+          )}
+
           <ModalFooter
             onCancel={handleClose}
             onConfirm={handleConfirm}
@@ -489,6 +513,16 @@ export default function GroupStatusUpdateModal({
         label="Hora programada"
         locale="es"
         use24HourClock
+      />
+
+      {/* Confirmation dialog for group updates */}
+      <ConfirmGroupUpdateDialog
+        visible={showConfirmDialog}
+        onCancel={() => setShowConfirmDialog(false)}
+        onConfirm={() => {
+          setShowConfirmDialog(false);
+          executeUpdate();
+        }}
       />
     </Modal>
   );
@@ -552,6 +586,39 @@ function VerificationCodeSection({
         </>
       )}
     </View>
+  );
+}
+
+interface ConfirmGroupUpdateDialogProps {
+  visible: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+function ConfirmGroupUpdateDialog({
+  visible,
+  onCancel,
+  onConfirm,
+}: ConfirmGroupUpdateDialogProps) {
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.confirmOverlay}>
+        <View style={styles.confirmContent}>
+          <Text style={styles.confirmTitle}>Confirmar actualización</Text>
+          <Text style={styles.confirmMessage}>
+            ¿Recogiste y/o entregaste todas las asignaciones en este punto?
+          </Text>
+          <View style={styles.confirmActions}>
+            <Pressable style={styles.confirmCancelBtn} onPress={onCancel}>
+              <Text style={styles.confirmCancelText}>No</Text>
+            </Pressable>
+            <Pressable style={styles.confirmAcceptBtn} onPress={onConfirm}>
+              <Text style={styles.confirmAcceptText}>Si</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -961,5 +1028,80 @@ const styles = StyleSheet.create({
     color: CustomColors.warning,
     fontWeight: "bold",
     marginTop: 2,
+  },
+  groupWarningBanner: {
+    backgroundColor: `${CustomColors.warning}20`,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: CustomColors.warning,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  groupWarningIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  groupWarningText: {
+    color: CustomColors.warning,
+    fontSize: 14,
+    fontWeight: "bold",
+    flex: 1,
+    textAlign: "center",
+  },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: CustomColors.overlay,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  confirmContent: {
+    backgroundColor: CustomColors.backgroundMedium,
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+  },
+  confirmTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: CustomColors.textLight,
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  confirmMessage: {
+    fontSize: 16,
+    color: CustomColors.textLight,
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  confirmActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  confirmCancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CustomColors.divider,
+  },
+  confirmCancelText: {
+    color: CustomColors.textLight,
+    fontWeight: "600",
+  },
+  confirmAcceptBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: CustomColors.success,
+  },
+  confirmAcceptText: {
+    color: CustomColors.textLight,
+    fontWeight: "bold",
   },
 });

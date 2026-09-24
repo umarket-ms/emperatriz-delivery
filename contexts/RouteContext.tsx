@@ -1,5 +1,4 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
-import { router } from 'expo-router';
 import { useOsrmTrip } from '@/core/hooks/useOsrmTrip';
 import { DeliveryItemAdapter } from '@/interfaces/delivery/deliveryAdapters';
 import { IDeliveryStatus } from '@/interfaces/delivery/deliveryStatus';
@@ -16,9 +15,9 @@ interface RouteContextType {
   tripDeliveries: DeliveryItemAdapter[];
 
   // Métodos
-  startRoutes: (allDeliveries: DeliveryItemAdapter[]) => Promise<void>;
+  startRoutes: (allDeliveries: DeliveryItemAdapter[], fallbackPosition?: { latitude: number; longitude: number }) => Promise<void>;
   recalculateRoutes: (allDeliveries: DeliveryItemAdapter[]) => Promise<void>;
-  recalculateRoutesViaBackend: () => Promise<void>;
+  recalculateRoutesViaBackend: (fallbackPosition?: { latitude: number; longitude: number }) => Promise<void>;
   setTripDeliveries: (deliveries: DeliveryItemAdapter[]) => void;
 }
 
@@ -38,27 +37,33 @@ interface RouteProviderProps {
 
 function prepareRouteData(allDeliveries: DeliveryItemAdapter[]) {
   const pendingDeliveries = allDeliveries.filter(delivery => {
-    console.log('delivery: ', delivery.id, 'status: ', delivery.deliveryStatus.title, 'nominatim: ', { lat: delivery.additionalDataNominatimLat, lng: delivery.additionalDataNominatimLng });
+    const isDelivery = delivery.type === 'DELIVERY';
+    const lat = isDelivery ? delivery.destinyNominatimLat : delivery.originNominatimLat;
+    const lng = isDelivery ? delivery.destinyNominatimLng : delivery.originNominatimLng;
+    console.log('delivery: ', delivery.id, 'status: ', delivery.deliveryStatus.title, 'nominatim: ', { lat, lng });
     
+    const isActive = delivery.status !== 'inactive';
     const isPending = delivery.deliveryStatus.title !== IDeliveryStatus.DELIVERED &&
                      delivery.deliveryStatus.title !== IDeliveryStatus.CANCELLED &&
                      delivery.deliveryStatus.title !== IDeliveryStatus.RETURNED &&
                      delivery.deliveryStatus.title !== IDeliveryStatus.SCHEDULED;
 
-    const hasCoordinates = delivery.additionalDataNominatimLat != null &&
-                          delivery.additionalDataNominatimLng != null;
+    const hasCoordinates = lat != null && lng != null;
 
-    return isPending && hasCoordinates;
+    return isActive && isPending && hasCoordinates;
   });
 
   if (pendingDeliveries.length === 0) {
     return null;
   } 
 
-  const coordinates = pendingDeliveries.map(delivery => ({
-    latitude: delivery.additionalDataNominatimLat!,
-    longitude: delivery.additionalDataNominatimLng!,
-  }));
+  const coordinates = pendingDeliveries.map(delivery => {
+    const isDelivery = delivery.type === 'DELIVERY';
+    return {
+      latitude: (isDelivery ? delivery.destinyNominatimLat : delivery.originNominatimLat)!,
+      longitude: (isDelivery ? delivery.destinyNominatimLng : delivery.originNominatimLng)!,
+    };
+  });
 
   return { pendingDeliveries, coordinates };
 }
@@ -67,12 +72,15 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
   const { data: tripData, loading: tripLoading, error: tripError, fetchTrip, setTripData } = useOsrmTrip();
   const [tripDeliveries, setTripDeliveries] = useState<DeliveryItemAdapter[]>([]);
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
-  const { user, carrier } = useAuth();
+  const { user, carrier, isLoading } = useAuth();
 
   // Método para iniciar rutas con optimización del backend
-  const startRoutes = async (allDeliveries: DeliveryItemAdapter[]) => {
+  const startRoutes = async (allDeliveries: DeliveryItemAdapter[], fallbackPosition?: { latitude: number; longitude: number }) => {
     console.log('[RouteContext] Iniciando cálculo de rutas optimizadas desde backend...');
     
+    if (isLoading) {
+      throw new Error('El contexto de autenticación aún está cargando, espere un momento.');
+    }
     if (!user) {
       throw new Error('Usuario no autenticado');
     }
@@ -88,25 +96,29 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
     setIsOptimizing(true);
     try {
       // Paso 0: Obtener ubicación actual del courier
+      let lat: number;
+      let lng: number;
+
       const { courierLocationTracking } = await import('@/services/courierLocationService');
       const currentLocation = await courierLocationTracking.getCurrentLocation();
 
-      if (!currentLocation) {
+      if (currentLocation) {
+        lat = currentLocation.coords.latitude;
+        lng = currentLocation.coords.longitude;
+        console.log('[RouteContext] Ubicación obtenida de courierLocationService:', { lat, lng });
+      } else if (fallbackPosition) {
+        lat = fallbackPosition.latitude;
+        lng = fallbackPosition.longitude;
+        console.log('[RouteContext] Usando fallbackPosition del screen:', { lat, lng });
+      } else {
         throw new Error('No se pudo obtener la ubicación actual del mensajero');
       }
-      console.log('currentLocation: ',currentLocation);
-      
-      console.log('[RouteContext] Ubicación actual obtenida:', {
-        lat: currentLocation.coords.latitude,
-        lng: currentLocation.coords.longitude
-      });
 
       // Paso 1: Obtener ruta optimizada desde el backend con ubicación actual
       console.log('[RouteContext] Solicitando ruta optimizada al backend...');
-      console.log('CARRIER:', carrier);      
       const optimizedRoute = await getOptimizedRoute(carrierId, {
-        lat: currentLocation.coords.latitude,
-        lng: currentLocation.coords.longitude,
+        lat,
+        lng,
       });
 
       console.log('[RouteContext] Ruta optimizada recibida del backend');
@@ -161,7 +173,7 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
       };
 
       setTripData(tripDataFromBackend);
-      router.push('/(tabs)/trip-map');
+      // Navegación eliminada: Ruta es ahora la pantalla principal
 
       console.log('[RouteContext] ✅ Ruta optimizada cargada correctamente');
     } catch (error:any) {
@@ -203,7 +215,7 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
   };
 
   // Recalcula la ruta vía backend (igual que startRoutes pero sin navegar al mapa)
-  const recalculateRoutesViaBackend = useCallback(async () => {
+  const recalculateRoutesViaBackend = useCallback(async (fallbackPosition?: { latitude: number; longitude: number }) => {
     console.log('[RouteContext] Recalculando ruta vía backend por nueva asignación...');
 
     if (!user) return;
@@ -212,16 +224,27 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
 
     setIsOptimizing(true);
     try {
+      let lat: number;
+      let lng: number;
+
       const { courierLocationTracking } = await import('@/services/courierLocationService');
       const currentLocation = await courierLocationTracking.getCurrentLocation();
-      if (!currentLocation) {
+
+      if (currentLocation) {
+        lat = currentLocation.coords.latitude;
+        lng = currentLocation.coords.longitude;
+      } else if (fallbackPosition) {
+        lat = fallbackPosition.latitude;
+        lng = fallbackPosition.longitude;
+        console.log('[RouteContext] recalculateRoutesViaBackend: usando fallbackPosition');
+      } else {
         console.warn('[RouteContext] No se pudo obtener ubicación para recalcular');
         return;
       }
 
       const optimizedRoute = await getOptimizedRoute(carrierId, {
-        lat: currentLocation.coords.latitude,
-        lng: currentLocation.coords.longitude,
+        lat,
+        lng,
       });
 
       const freshDeliveries = await getDeliveries();

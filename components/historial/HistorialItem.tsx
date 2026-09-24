@@ -3,23 +3,23 @@ import { Text } from '@/components/Themed';
 import React from 'react';
 import { CustomColors } from '@/constants/CustomColors';
 import { AssignmentType } from '@/utils/enum';
-import { Capitalize } from '@/utils/capitalize';
+import { DeliveryItemAdapter } from '@/interfaces/delivery/deliveryAdapters';
 
-export interface Item {
-  id: string;
-  title: string;
-  client: string;
-  phone: string;
-  type: AssignmentType;
-  deliveryAddress: string;
-  currentStatus?: string;
+interface HistorialItemProps {
+  item: DeliveryItemAdapter;
 }
 
-interface DeliveryItemProps {
-  item: Item;
+function formatDate(dateString: Date | string): string {
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
-export const DeliveryItem: React.FC<DeliveryItemProps> = ({ item }) => {
+export const HistorialItem: React.FC<HistorialItemProps> = ({ item }) => {
   return (
     <View
       style={[
@@ -56,9 +56,13 @@ export const DeliveryItem: React.FC<DeliveryItemProps> = ({ item }) => {
             <Text style={styles.addressText}>
               {item.deliveryAddress}
             </Text>
+
+            {item.completedAt && (
+              <Text style={styles.completedText}>
+                Completado: {formatDate(item.completedAt)}
+              </Text>
+            )}
           </View>
-
-
         </View>
       </View>
     </View>
@@ -108,6 +112,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.78,
   },
+  completedText: {
+    color: CustomColors.success,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   typeIndicator: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -134,11 +144,5 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 10,
-  },
-  titleText: {
-    color: CustomColors.textLight,
-    fontSize: 13,
-    opacity: 0.8,
-    flex: 1,
   },
 });
