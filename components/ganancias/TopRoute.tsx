@@ -5,9 +5,6 @@ import { CustomColors } from '@/constants/CustomColors';
 import { Capitalize } from '@/utils/capitalize';
 import { DriverTopRoute } from '@/core/actions/ganancias-actions';
 
-const formatDOP = (value: number) =>
-    value.toLocaleString('es-DO', { style: 'currency', currency: 'DOP', maximumFractionDigits: 2 });
-
 interface TopRouteProps {
     route?: DriverTopRoute | null;
     isLoading?: boolean;

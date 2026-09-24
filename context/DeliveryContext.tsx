@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { DeliveryItemAdapter } from '@/interfaces/delivery/deliveryAdapters';
 import { getDeliveries } from '@/core/actions/delivery.actions';
 import { useAuth } from '@/context/AuthContext';
+import { socketService, SocketEventType } from '@/services/websocketService';
 
 interface DeliveryContextType {
     deliveries: DeliveryItemAdapter[];
@@ -127,6 +128,46 @@ export const DeliveryProvider: React.FC<DeliveryProviderProps> = ({ children }) 
         setDeliveries(update);
         setAllDeliveries(update);
     };
+
+    // Wire socket events to keep allDeliveries in sync
+    const handleDeliveryAssignedRef = useRef(handleDeliveryAssigned);
+    const handleDriversGroupAssignedRef = useRef(handleDriversGroupAssigned);
+    const handleDeliveryUpdatedRef = useRef(handleDeliveryUpdated);
+    const handleDeliveryReorderedRef = useRef(handleDeliveryReordered);
+
+    useEffect(() => {
+      handleDeliveryAssignedRef.current = handleDeliveryAssigned;
+      handleDriversGroupAssignedRef.current = handleDriversGroupAssigned;
+      handleDeliveryUpdatedRef.current = handleDeliveryUpdated;
+      handleDeliveryReorderedRef.current = handleDeliveryReordered;
+    });
+
+    useEffect(() => {
+      const onDriverAssigned = (data: DeliveryItemAdapter) => {
+        handleDeliveryAssignedRef.current(data);
+      };
+      const onDriversGroupAssigned = (data: DeliveryItemAdapter[]) => {
+        handleDriversGroupAssignedRef.current(data);
+      };
+      const onDeliveryUpdated = (data: DeliveryItemAdapter) => {
+        handleDeliveryUpdatedRef.current(data);
+      };
+      const onDeliveryReordered = (data: DeliveryItemAdapter) => {
+        handleDeliveryReorderedRef.current(data);
+      };
+
+      socketService.on(SocketEventType.DRIVER_ASSIGNED, onDriverAssigned);
+      socketService.on(SocketEventType.DRIVERS_GROUP_ASSIGNED, onDriversGroupAssigned);
+      socketService.on(SocketEventType.DELIVERY_UPDATED, onDeliveryUpdated);
+      socketService.on(SocketEventType.DELIVERY_REORDERED, onDeliveryReordered);
+
+      return () => {
+        socketService.off(SocketEventType.DRIVER_ASSIGNED, onDriverAssigned);
+        socketService.off(SocketEventType.DRIVERS_GROUP_ASSIGNED, onDriversGroupAssigned);
+        socketService.off(SocketEventType.DELIVERY_UPDATED, onDeliveryUpdated);
+        socketService.off(SocketEventType.DELIVERY_REORDERED, onDeliveryReordered);
+      };
+    }, []);
 
     const value: DeliveryContextType = {
         deliveries,

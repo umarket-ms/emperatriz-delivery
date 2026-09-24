@@ -1,6 +1,5 @@
 import type { AssignmentType } from "@/utils/enum";
 import type { IGlobalEntity } from "../global";
-import type { IMunicipio, IProvincia, ISector } from "../location";
 import type { IDeliveryPerson } from "../carrier";
 import type { IEnterpriseEntity } from "../auth";
 import type { IDeliveryStatus } from "./deliveryStatus";
@@ -41,18 +40,16 @@ export interface IDeliveryAssignmentSummaryEntity extends IGlobalEntity {
   amountPaid?: number;
   deliveryAddress: string;
   observations?: string;
-  provincia: IProvincia;
   shipmentId: string;
   type: AssignmentType;
-  municipio: IMunicipio;
   deliveryStatus: IDeliveryStatusEntity;
   assignedAt: Date;
   acceptedAt: Date;
   completedAt: Date;
   driver: IDeliveryPerson;
   paymentMethod?: IPaymentMethodEntity;
-  origin?: ISector;
-  destiny?: ISector;
+  originNominatimId: number | null;
+  destinyNominatimId: number | null;
   enterprise:IEnterpriseEntity;
 }
 
@@ -60,6 +57,7 @@ export interface IDeliveryAssignmentEntity extends IGlobalEntity {
   id: number;
   order: number;
   deliveryCost: number;
+  deliveryCostInLocalCurrency?: number;
   contact: string;
   amountToBeCharged: number;
   amountPaid?: number;
@@ -68,11 +66,13 @@ export interface IDeliveryAssignmentEntity extends IGlobalEntity {
   type: AssignmentType;
   deliveryAddress: string;
   observations?: string;
-  provincia: IProvincia;
-  municipio: IMunicipio;
-  additionalDataNominatimId: number | null;
-  additionalDataNominatimLat: number | null;
-  additionalDataNominatimLng: number | null;
+  status?: string;
+  originNominatimId: number | null;
+  destinyNominatimId: number | null;
+  originNominatimLat: number | null;
+  originNominatimLng: number | null;
+  destinyNominatimLat: number | null;
+  destinyNominatimLng: number | null;
   deliveryStatus: IDeliveryStatusEntity;
   paymentMethod?: IPaymentMethodEntity;
   assignedAt: Date;
@@ -82,9 +82,26 @@ export interface IDeliveryAssignmentEntity extends IGlobalEntity {
   driver: IDeliveryPerson;
   isGroup: boolean;
   deliveryVerificationCode?: string;
-  origin?: ISector;
-  destiny?: ISector;
-  enterprise:IEnterpriseEntity;
+  enterprise: IEnterpriseEntity;
+  deliveryAssignmentDetails?: DeliveryAssignmentDetailEntity[];
+}
+
+export interface DeliveryAssignmentDetailEntity {
+  id: number;
+  shipmentId: string;
+  quantity: number | null;
+  unitPrice: number;
+  sellerUnitPrice: number;
+  additionalAmount: number | null;
+  productTitle: string | null;
+  orderSource: string;
+  type: string;
+  productId: number | null;
+  productVariationSelectedId: number | null;
+  deliveryAssignmentId: number;
+  enterpriseId: number | null;
+  status: string | null;
+  imageUrl: string | null;
 }
 
 export interface OrderEntity extends IGlobalEntity {
@@ -147,10 +164,6 @@ export interface IDeliveryInfoDto {
   amountToBeCharged?: number;
   deliveryAddress: string;
   observations?: string;
-  provincia: number;
-  municipio: number;
-  origin: number;
-  destiny: number;
 }
 
 export interface ICreateDeliveryAssigment extends IDeliveryInfoDto{
@@ -167,6 +180,4 @@ export interface IDeliveryCost {
   id: number;
   value: number;
   description: string;
-  origin: number;
-  destiny: number;
 }

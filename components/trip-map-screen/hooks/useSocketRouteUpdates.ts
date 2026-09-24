@@ -22,6 +22,15 @@ export function useSocketRouteUpdates(
       SocketEventType.DELIVERY_STATUS_UPDATED,
       handleNewAssignment,
     );
+    socketService.on(
+      SocketEventType.DELIVERY_ASSIGNMENT_UPDATED,
+      handleNewAssignment,
+    );
+    socketService.on(SocketEventType.DELIVERY_UPDATED, handleNewAssignment);
+    socketService.on(
+      SocketEventType.DELIVERY_STATUS_CHANGED,
+      handleNewAssignment,
+    );
 
     return () => {
       socketService.off(SocketEventType.DRIVER_ASSIGNED, handleNewAssignment);
@@ -35,6 +44,18 @@ export function useSocketRouteUpdates(
       );
       socketService.off(
         SocketEventType.DELIVERY_STATUS_UPDATED,
+        handleNewAssignment,
+      );
+      socketService.off(
+        SocketEventType.DELIVERY_ASSIGNMENT_UPDATED,
+        handleNewAssignment,
+      );
+      socketService.off(
+        SocketEventType.DELIVERY_UPDATED,
+        handleNewAssignment,
+      );
+      socketService.off(
+        SocketEventType.DELIVERY_STATUS_CHANGED,
         handleNewAssignment,
       );
     };

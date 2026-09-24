@@ -5,12 +5,14 @@ import { Stack, router, useSegments, useRootNavigationState } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
 import 'react-native-reanimated';
+import '../src/lib/sentry';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Provider as PaperProvider, MD3DarkTheme } from 'react-native-paper';
 import type { MD3Theme } from 'react-native-paper';
 import { registerTranslation } from 'react-native-paper-dates';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 registerTranslation('es', {
   save: 'Guardar',
@@ -169,7 +171,7 @@ export default function RootLayout() {
 
 // Protección de rutas
 function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, carrier } = useAuth();
   const { fetchDeliveries } = useDelivery();
   const segments = useSegments();
   const navigationState = useRootNavigationState();
@@ -201,11 +203,14 @@ function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
     } else if (isAuthenticated && user?.isEmailVerified && user?.mustChangePassword && !isChangePasswordScreen) {
       // Email verificado pero debe cambiar contraseña inicial
       router.replace('/change-initial-password');
+    } else if (isAuthenticated && user?.isEmailVerified && !user?.mustChangePassword && !carrier) {
+      // Autenticado pero sin carrier → redirigir a login
+      router.replace('/login');
     } else if (isAuthenticated && user?.isEmailVerified && !user?.mustChangePassword && (isLoginScreen || isVerifyScreen || isChangePasswordScreen)) {
-      // Autenticado y verificado → app
-      router.replace('/(tabs)');
+      // Autenticado y verificado con carrier → app (Ruta es la pantalla principal)
+      router.replace('/(tabs)/trip-map');
     }
-  }, [segments, isAuthenticated, isLoading, navigationState?.key, user?.isEmailVerified, user?.mustChangePassword]);
+  }, [segments, isAuthenticated, isLoading, navigationState?.key, user?.isEmailVerified, user?.mustChangePassword, carrier]);
 
   useEffect(() => {
     // Oculta los botones de Android
@@ -260,33 +265,35 @@ function RootLayoutNav() {
   const paperTheme = paperCustomTheme;
 
   return (
-    <SafeAreaProvider>
-      <PaperProvider theme={paperTheme}>
-      <AuthProvider>
-        <ActiveDeliveryProvider>
-          <DeliveryProvider>
-              <ThemeProvider value={navCustomTheme}>
-              <ProtectedRouteGuard>
-                <Stack screenOptions={{
-                  headerStyle: {
-                    backgroundColor: CustomColors.backgroundDarkest
-                  },
-                  headerTintColor: CustomColors.white
-                }}>
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-                  <Stack.Screen name="login" options={{ headerShown: false }} />
-                  <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
-                </Stack>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <PaperProvider theme={paperTheme}>
+        <AuthProvider>
+          <ActiveDeliveryProvider>
+            <DeliveryProvider>
+                <ThemeProvider value={navCustomTheme}>
+                <ProtectedRouteGuard>
+                  <Stack screenOptions={{
+                    headerStyle: {
+                      backgroundColor: CustomColors.backgroundDarkest
+                    },
+                    headerTintColor: CustomColors.white
+                  }}>
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="login" options={{ headerShown: false }} />
+                    <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+                  </Stack>
 
-                <NotificationHandler />
-              </ProtectedRouteGuard>
-            </ThemeProvider>
-          </DeliveryProvider>
-        </ActiveDeliveryProvider>
-      </AuthProvider>
-      </PaperProvider>
-    </SafeAreaProvider>
+                  <NotificationHandler />
+                </ProtectedRouteGuard>
+              </ThemeProvider>
+            </DeliveryProvider>
+          </ActiveDeliveryProvider>
+        </AuthProvider>
+        </PaperProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

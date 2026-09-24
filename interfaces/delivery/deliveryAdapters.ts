@@ -1,6 +1,5 @@
-import { IDeliveryAssignmentEntity, OrderEntity } from "../delivery/delivery";
+import { IDeliveryAssignmentEntity, OrderEntity, DeliveryAssignmentDetailEntity } from "../delivery/delivery";
 import { AssignmentType } from "@/utils/enum";
-import { IProvincia, IMunicipio, ISector } from "@/interfaces/location";
 import { IDeliveryStatusEntity } from "../delivery/delivery";
 import { Capitalize } from "@/utils/capitalize";
 
@@ -14,19 +13,23 @@ export interface DeliveryItemAdapter {
   deliveryStatus: IDeliveryStatusEntity;
   deliveryAddress: string;
   observations?: string;
-  provincia: IProvincia;
-  municipio: IMunicipio;
-  origin?: ISector;
-  destiny?: ISector;
-  isGroup: boolean;
-  additionalDataNominatimLat: number | null;
-  additionalDataNominatimLng: number | null;
+  status?: string;
+  originNominatimId: number | null;
+  destinyNominatimId: number | null;
+  originNominatimLat: number | null;
+  originNominatimLng: number | null;
+  destinyNominatimLat: number | null;
+  destinyNominatimLng: number | null;
   relatedOrder?: OrderEntity;
+  deliveryAssignmentDetails?: DeliveryAssignmentDetailEntity[];
   shipmentId: string;
   deliveryCost: number;
+  deliveryCostInLocalCurrency: number;
   amountToBeCharged: number;
   enterprise: string;
   deliveryVerificationCode?: string;
+  isGroup: boolean;
+  completedAt?: Date;
 }
 
 // Interfaz para representar un grupo de entregas
@@ -43,26 +46,30 @@ export function adaptDeliveriesToAdapter(deliveries: IDeliveryAssignmentEntity[]
   try {
     return deliveries.map(delivery => ({
       id: delivery.id.toString(),
-      title: `${Capitalize(delivery.provincia.nombre)}, ${Capitalize(delivery.municipio.nombre)}, ${Capitalize(delivery.origin?.nombre || '')}`,
+      title: delivery.deliveryAddress || '',
       client: Capitalize(delivery.contact),
       phone: delivery.phone,
       type: delivery.type,
       deliveryStatus: delivery.deliveryStatus,
       deliveryAddress: delivery.deliveryAddress,
       observations: delivery.observations,
-      provincia: delivery.provincia,
-      municipio: delivery.municipio,
-      origin: delivery.origin,
-      destiny: delivery.destiny,
-      additionalDataNominatimLat: delivery.additionalDataNominatimLat,
-      additionalDataNominatimLng: delivery.additionalDataNominatimLng,
+      status: delivery.status,
+      originNominatimId: delivery.originNominatimId ?? null,
+      destinyNominatimId: delivery.destinyNominatimId ?? null,
+      originNominatimLat: (delivery as any).originNominatimLat ?? null,
+      originNominatimLng: (delivery as any).originNominatimLng ?? null,
+      destinyNominatimLat: (delivery as any).destinyNominatimLat ?? null,
+      destinyNominatimLng: (delivery as any).destinyNominatimLng ?? null,
       isGroup: delivery.isGroup || false,
       shipmentId: delivery.shipmentId,
       deliveryCost: Number(delivery.deliveryCost),
+      deliveryCostInLocalCurrency: Number((delivery as any).deliveryCostInLocalCurrency ?? delivery.deliveryCost),
       amountToBeCharged: Number((delivery as any).amountToBeCharged ?? (delivery as any).cost ?? 0),
       relatedOrder: delivery.relatedOrder,
+      deliveryAssignmentDetails: (delivery as any).deliveryAssignmentDetails,
       enterprise: delivery.enterprise.title,
       deliveryVerificationCode: delivery.deliveryVerificationCode,
+      completedAt: delivery.completedAt,
     }));    
   } catch (error:any) {
     console.log('Error al adaptar entregas:', error);
@@ -101,7 +108,7 @@ function groupDeliveriesByShipment(deliveries: DeliveryItemAdapter[]): (Delivery
         shipmentId,
         pickups,
         delivery: deliveryItem,
-        totalDeliveryCost: groupItems.reduce((sum, item) => sum + Number(item.deliveryCost), 0),
+        totalDeliveryCost: groupItems.reduce((sum, item) => sum + Number(item.deliveryCostInLocalCurrency ?? item.deliveryCost), 0),
         totalAmountToBeCharged: groupItems.reduce((sum, item) => sum + Number((item as any).amountToBeCharged ?? (item as any).deliveryCost ?? 0), 0),
       };
       result.push(group);

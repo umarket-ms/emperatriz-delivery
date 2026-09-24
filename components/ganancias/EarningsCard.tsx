@@ -4,9 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { CustomColors } from '@/constants/CustomColors';
 import { DriverEarnings } from '@/core/actions/ganancias-actions';
-
-const formatDOP = (value: number) =>
-    value.toLocaleString('es-DO', { style: 'currency', currency: 'DOP', maximumFractionDigits: 2 });
+import { formatMoney } from '@/utils/currency';
 
 interface EarningsCardProps {
     earnings?: DriverEarnings | null;
@@ -38,7 +36,7 @@ const EarningsCard = ({ earnings, deliveries, isLoading = false }: EarningsCardP
                             <ActivityIndicator color={CustomColors.primary} style={{ marginTop: 8 }} />
                         ) : (
                             <>
-                                <Text style={styles.amount}>{earnings ? formatDOP(earnings.weekTotal) : '—'}</Text>
+                                <Text style={styles.amount}>{earnings ? formatMoney(earnings.weekTotal) : '—'}</Text>
                                 {deliveries != null && (
                                     <Text style={styles.subAmount}>{deliveries} entregas esta semana</Text>
                                 )}
@@ -53,7 +51,7 @@ const EarningsCard = ({ earnings, deliveries, isLoading = false }: EarningsCardP
                         {isLoading ? (
                             <ActivityIndicator color={CustomColors.primary} size="small" />
                         ) : (
-                            <Text style={styles.statValue}>{earnings ? formatDOP(earnings.monthTotal) : '—'}</Text>
+                            <Text style={styles.statValue}>{earnings ? formatMoney(earnings.monthTotal) : '—'}</Text>
                         )}
                     </View>
                     <View style={styles.separator} />
