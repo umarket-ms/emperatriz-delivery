@@ -88,8 +88,4 @@ export enum ApiEndpoints {
   // ==========================================================================
   CxpCreditNotesForInvoice = 'cxp-credit-notes/for-invoice/{invoiceId}',
 
-  // ==========================================================================
-  // Notifications
-  // ==========================================================================
-  NotificationsToken = 'notifications/token',
-}
+  }

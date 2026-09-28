@@ -45,7 +45,6 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { api, checkApiConnectivity } from '@/services/api';
 import { setupDeepLinkListeners } from '@/utils/deepLinkHandler';
 import { useBatteryOptimizationCheck } from '@/core/hooks/useBatteryOptimizationCheck';
-import { useFCMPushNotifications } from '@/core/hooks/useFCMPushNotifications';
 import { useOTAUpdates } from '@/core/hooks/useOTAUpdates';
 import ForceUpdateScreen from '@/components/ForceUpdateScreen';
 import { getRecoveryState } from '@/utils/passwordRecovery';
@@ -177,8 +176,6 @@ function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
   const navigationState = useRootNavigationState();
   const lastOnline = useRef<boolean | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useFCMPushNotifications(user?.id);
 
   useEffect(() => {
     if (isLoading || !navigationState?.key) return;

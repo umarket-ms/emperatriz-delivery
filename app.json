@@ -49,7 +49,6 @@
       }
     },
     "android": {
-      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1A1125"
@@ -115,16 +114,13 @@
           "root": "./app"
         }
       ],
-      "@react-native-firebase/app",
-      "@react-native-firebase/messaging",
       "expo-audio",
       "expo-asset",
       [
         "expo-build-properties",
         {
           "ios": {
-            "useFrameworks": "static",
-            "forceStaticLinking": ["RNFBApp", "RNFBMessaging"]
+            "useFrameworks": "static"
           }
         }
       ],
