@@ -68,6 +68,7 @@ class CourierLocationTrackingService {
   private permissionCheckTimerId: ReturnType<typeof setInterval> | null = null;
   private userId: number | null = null;
   private isFetchingLocation: boolean = false;
+  private manualLocationOverride: { lat: number; lng: number; accuracy: number } | null = null;
 
   /**
    * Inicializa el servicio con la configuración
@@ -332,8 +333,6 @@ class CourierLocationTrackingService {
         const location = await this.getCurrentLocation();
         if (location) {
           this.sendLocationToBackend(location);
-          this.lastSentLocation = location;
-          this.lastSentTime = now;
         }
       }
     }, this.config.updateInterval);
@@ -426,17 +425,15 @@ class CourierLocationTrackingService {
       // Enviar ubicación al backend
       // console.log('[LocationTracking] ✅ Pasó throttling, enviando al backend...');
       this.sendLocationToBackend(location);
-
-      // Actualizar estado
-      this.lastSentLocation = location;
-      this.lastSentTime = now;
     } catch (error: any) {
       // console.error('[LocationTracking] ❌ Error al manejar actualización de ubicación:', error);
     }
   }
 
   /**
-   * Envía la ubicación al backend vía WebSocket
+   * Envía la ubicación al backend vía WebSocket.
+   * Si hay una ubicación manual configurada (setManualLocation), siempre se
+   * envía esa en lugar de la del dispositivo.
    */
   private sendLocationToBackend(location: Location.LocationObject) {
     try {
@@ -447,15 +444,27 @@ class CourierLocationTrackingService {
         return;
       }
 
-      const payload: CourierLocation = {
-        courierId: this.userId,
-        lat: location.coords.latitude,
-        lng: location.coords.longitude,
-        accuracy: location.coords.accuracy || 0,
-        timestamp: new Date(location.timestamp).toISOString(),
-        speed: location.coords.speed ?? undefined,
-        heading: location.coords.heading ?? undefined,
-      };
+      const override = this.manualLocationOverride;
+
+      const payload: CourierLocation = override
+        ? {
+            courierId: this.userId,
+            lat: override.lat,
+            lng: override.lng,
+            accuracy: override.accuracy,
+            timestamp: new Date().toISOString(),
+            speed: 0,
+            heading: 0,
+          }
+        : {
+            courierId: this.userId,
+            lat: location.coords.latitude,
+            lng: location.coords.longitude,
+            accuracy: location.coords.accuracy || 0,
+            timestamp: new Date(location.timestamp).toISOString(),
+            speed: location.coords.speed ?? undefined,
+            heading: location.coords.heading ?? undefined,
+          };
 
       console.log("[LocationTracking] Payload preparado:", payload);
       console.log(
@@ -469,12 +478,79 @@ class CourierLocationTrackingService {
           // `[LocationTracking] ✅ Ubicación enviada exitosamente: (${payload.lat.toFixed(6)}, ${payload.lng.toFixed(6)}) ` +
           `accuracy: ${payload.accuracy.toFixed(1)}m`,
         );
+        this.lastSentLocation = override
+          ? this.buildFakeLocationObject(override)
+          : location;
+        this.lastSentTime = Date.now();
       } else {
         // console.warn('[LocationTracking] ⚠️ No se pudo enviar ubicación (emit retornó false)');
       }
     } catch (error: any) {
       // console.error('[LocationTracking] ❌ Error al enviar ubicación:', error);
     }
+  }
+
+  /**
+   * Establece una ubicación manual que se usará como ubicación del mensajero
+   * en CADA envío al backend (GPS, fallback, refresh). Envía la ubicación
+   * inmediatamente. Útil para simular ubicaciones sin mover el dispositivo (solo dev).
+   * No afecta getCurrentLocation() ni la optimización de rutas.
+   */
+  setManualLocation(lat: number, lng: number, accuracy: number = 0): boolean {
+    try {
+      if (!this.userId) {
+        console.warn('[LocationTracking] ❌ No se puede establecer ubicación manual sin userId');
+        return false;
+      }
+
+      this.manualLocationOverride = { lat, lng, accuracy };
+
+      if (!socketService.isConnected()) {
+        console.log('[LocationTracking] 📍 Ubicación manual establecida (pendiente de socket):', { lat, lng });
+        return false;
+      }
+
+      console.log(`[LocationTracking] 📍 Ubicación manual establecida: (${lat}, ${lng})`);
+      const location = this.buildFakeLocationObject(this.manualLocationOverride);
+      this.sendLocationToBackend(location);
+      return true;
+    } catch (error: any) {
+      console.error('[LocationTracking] ❌ Error al establecer ubicación manual:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Elimina la ubicación manual y vuelve a enviar la ubicación GPS real
+   */
+  clearManualLocation(): void {
+    this.manualLocationOverride = null;
+    console.log('[LocationTracking] 📍 Ubicación manual eliminada, volviendo a GPS real');
+  }
+
+  /**
+   * Indica si hay una ubicación manual configurada
+   */
+  getManualLocation(): { lat: number; lng: number; accuracy: number } | null {
+    return this.manualLocationOverride;
+  }
+
+  /**
+   * Construye un objeto Location.LocationObject con las coordenadas dadas
+   */
+  private buildFakeLocationObject(override: { lat: number; lng: number; accuracy: number }): Location.LocationObject {
+    return {
+      coords: {
+        latitude: override.lat,
+        longitude: override.lng,
+        accuracy: override.accuracy,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        speed: 0,
+      },
+      timestamp: Date.now(),
+    } as Location.LocationObject;
   }
 
   /**
@@ -509,12 +585,14 @@ class CourierLocationTrackingService {
     lastSentLocation: Location.LocationObject | null;
     lastSentTime: number;
     hasUserId: boolean;
+    manualLocation: { lat: number; lng: number; accuracy: number } | null;
   } {
     return {
       isTracking: this.isTracking,
       lastSentLocation: this.lastSentLocation,
       lastSentTime: this.lastSentTime,
       hasUserId: this.userId !== null,
+      manualLocation: this.manualLocationOverride,
     };
   }
 

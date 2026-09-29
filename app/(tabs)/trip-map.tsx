@@ -23,6 +23,7 @@ import { useTripRouteSync } from "@/components/trip-map-screen/hooks/useTripRout
 import TripMapView from "@/components/trip-map-screen/components/TripMapView";
 import MapControls from "@/components/trip-map-screen/components/MapControls";
 import SimulationControls from "@/components/trip-map-screen/components/SimulationControls";
+import ManualLocationControls from "@/components/trip-map-screen/components/ManualLocationControls";
 import CenterLocationButton from "@/components/trip-map-screen/components/CenterLocationButton";
 import WebSocketStatusIndicator from "@/components/trip-map-screen/components/WebSocketStatusIndicator";
 import TripMapLoadingState from "@/components/trip-map-screen/components/TripMapLoadingState";
@@ -341,6 +342,8 @@ export default function TripMapScreen() {
             <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>
           </Pressable>
 
+          {__DEV__ && <ManualLocationControls sendToMap={sendToMap} />}
+
           <ElementsBottomSheet ref={bottomSheetRef} />
           <Pressable style={fabStyles.fab} onPress={handleOpenSheet}>
             <Ionicons name="list" size={24} color={CustomColors.white} />
@@ -390,6 +393,8 @@ export default function TripMapScreen() {
             onToggle={() => setIsManualSimulation(!isManualSimulation)}
           />
         )}
+
+        {__DEV__ && <ManualLocationControls sendToMap={sendToMap} />}
 
         <WebSocketStatusIndicator />
 

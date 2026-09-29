@@ -15,8 +15,6 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "tiendasdominicanasdelivery",
-    
-    "newArchEnabled": true,
     "extra": {
       "apiUrl": {
         "EXPO_PUBLIC_API_URL_PROD": "https://api.tiendasdominicanas.com.do",
@@ -36,11 +34,6 @@
         "projectId": "d9114a6d-b3be-4b76-b734-ce5aefdc980c"
       }
     },
-    "splash": {
-      "image": "./assets/images/screen.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1A1125"
-    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -53,7 +46,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1A1125"
       },
-      "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
@@ -98,7 +90,11 @@
           "category": [
             "DEFAULT"
           ],
-          "mimeType": "text/plain"
+          "data": [
+            {
+              "mimeType": "text/plain"
+            }
+          ]
         }
       ]
     },
@@ -122,6 +118,14 @@
           "ios": {
             "useFrameworks": "static"
           }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/screen.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#1A1125"
         }
       ],
       [
