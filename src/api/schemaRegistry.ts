@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { OkLoginResponseSchema } from './schemas/auth.schema';
 import { OkDeliveryArraySchema, OkOptimizedRouteSchema, OkDeliverySchema } from './schemas/delivery.schema';
+import { OkAvailableDeliveryArraySchema, OkClaimDeliverySchema } from './schemas/available.schema';
 import { OkDeliveryStatusArraySchema } from './schemas/deliveryStatus.schema';
 import { OkPaymentMethodArraySchema } from './schemas/paymentMethod.schema';
 import { OkOsrmTripSchema, OkOsrmRouteSchema } from './schemas/osrm.schema';
@@ -22,6 +23,11 @@ const schemaRegistry: Record<string, AnySchema> = {
 
     // Ganancias — delivery driver stats (more specific before generic prefix)
     '/delivery-assignments/driver/stats': OkResultOf(z.number()),
+
+    // Despacho híbrido — self-assignment (más específico antes del genérico)
+    '/delivery-assignments/driver/available': OkAvailableDeliveryArraySchema,
+    '/delivery-assignments/driver/claim': OkClaimDeliverySchema,
+
     '/delivery-assignments/driver/top-route': OkResultOf(z.union([
         z.object({
             routeName: z.string(),

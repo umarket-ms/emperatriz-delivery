@@ -37,6 +37,7 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ActiveDeliveryProvider } from '@/context/ActiveDeliveryContext';
 import { DeliveryProvider } from '@/context/DeliveryContext';
 import { useDelivery } from '@/context/DeliveryContext';
+import { AvailableDeliveryProvider } from '@/context/AvailableDeliveryContext';
 import { useColorScheme } from '@/components/useColorScheme';
 import { CustomColors } from '@/constants/CustomColors';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -268,6 +269,7 @@ function RootLayoutNav() {
         <AuthProvider>
           <ActiveDeliveryProvider>
             <DeliveryProvider>
+              <AvailableDeliveryProvider>
                 <ThemeProvider value={navCustomTheme}>
                 <ProtectedRouteGuard>
                   <Stack screenOptions={{
@@ -284,7 +286,8 @@ function RootLayoutNav() {
 
                   <NotificationHandler />
                 </ProtectedRouteGuard>
-              </ThemeProvider>
+                </ThemeProvider>
+              </AvailableDeliveryProvider>
             </DeliveryProvider>
           </ActiveDeliveryProvider>
         </AuthProvider>

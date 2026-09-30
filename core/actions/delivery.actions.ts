@@ -10,6 +10,10 @@ import {
   adaptDeliveriesToAdapter,
   DeliveryItemAdapter,
 } from "@/interfaces/delivery/deliveryAdapters";
+import {
+  AvailableDeliveryItem,
+  ClaimDeliveryResponse,
+} from "@/interfaces/delivery/available";
 
 export const getDeliveries = async (
   filters?: Partial<IDeliveryAssignmentEntity>,
@@ -254,4 +258,36 @@ export const getOptimizedRoute = (
   apiAction.post<any>(
     `${ApiEndpoints.DeliveryAssignmentsOptimizedRoute}`.replace('{courierId}', String(courierId)),
     { currentLocation },
+  );
+
+// ==========================================================================
+// Self-assignment (despacho híbrido)
+// ==========================================================================
+
+export const getAvailableDeliveries = (): Promise<AvailableDeliveryItem[]> =>
+  apiAction.get<AvailableDeliveryItem[]>(
+    ApiEndpoints.DeliveryAssignmentsDriverAvailable,
+  );
+
+export const claimDelivery = (
+  id: number,
+): Promise<ClaimDeliveryResponse> =>
+  apiAction.post<ClaimDeliveryResponse>(
+    `${ApiEndpoints.DeliveryAssignmentsDriverClaim}`.replace('{id}', String(id)),
+  );
+
+/** Reclama en lote el grupo completo de viajes de un envío (shipmentId). */
+export const claimDeliveries = (
+  assignmentIds: number[],
+): Promise<ClaimDeliveryResponse> =>
+  apiAction.post<ClaimDeliveryResponse>(
+    ApiEndpoints.DeliveryAssignmentsDriverClaimGroup,
+    { assignmentIds },
+  );
+
+export const releaseDelivery = (
+  id: number,
+): Promise<{ message: string }> =>
+  apiAction.delete<{ message: string }>(
+    `${ApiEndpoints.DeliveryAssignmentsDriverClaim}`.replace('{id}', String(id)),
   );

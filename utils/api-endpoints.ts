@@ -54,6 +54,9 @@ export enum ApiEndpoints {
   DeliveryAssignmentsDriverStats = 'delivery-assignments/driver/stats',
   DeliveryAssignmentsDriverTopRoute = 'delivery-assignments/driver/top-route',
   DeliveryAssignmentsDriverRecentDeliveries = 'delivery-assignments/driver/recent-deliveries',
+  DeliveryAssignmentsDriverAvailable = 'delivery-assignments/driver/available',
+  DeliveryAssignmentsDriverClaim = 'delivery-assignments/driver/claim/{id}',
+  DeliveryAssignmentsDriverClaimGroup = 'delivery-assignments/driver/claim',
 
   // ==========================================================================
   // Delivery Status

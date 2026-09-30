@@ -45,6 +45,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="available"
+        options={{
+          title: 'Disponibles',
+          tabBarIcon: ({ color }) => <TabBarIcon name="inbox" color={color} />,
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
           href: null,
