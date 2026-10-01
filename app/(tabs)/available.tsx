@@ -31,11 +31,6 @@ export default function AvailableScreen() {
     const claimErrorMessage = await claim(shipmentId);
     if (claimErrorMessage) {
       Alert.alert('No se pudo reclamar', claimErrorMessage);
-    } else {
-      Alert.alert(
-        'Envío reclamado',
-        'El envío completo se agregó a tu ruta. Revisa la pestaña Ruta.',
-      );
     }
   };
 
