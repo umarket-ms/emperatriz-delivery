@@ -41,6 +41,32 @@ export default function AssignmentDetailsModal({
     Linking.openURL(`tel:${assignment.phone}`);
   };
 
+  const handleNavigate = async () => {
+    const isDelivery = assignment.type === AssignmentType.DELIVERY;
+    const lat = isDelivery ? assignment.destinyNominatimLat : assignment.originNominatimLat;
+    const lng = isDelivery ? assignment.destinyNominatimLng : assignment.originNominatimLng;
+    if (lat == null || lng == null) {
+      Alert.alert("Navegación", "No se encontraron coordenadas para esta entrega.");
+      return;
+    }
+
+    const wazeUrl = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+    const googleMapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+
+    try {
+      await Linking.openURL(wazeUrl);
+    } catch {
+      try {
+        await Linking.openURL(googleMapsUrl);
+      } catch {
+        Alert.alert(
+          "Navegación",
+          `No se pudo abrir una app de mapas.\n\nCoordenadas: ${lat},${lng}\n${wazeUrl}`
+        );
+      }
+    }
+  };
+
   // For PICKUP assignments, get product details from the DELIVERY assignment of the same shipment
   const getDetailsWithImages = () => {
     if (assignment.deliveryAssignmentDetails && 
@@ -107,6 +133,12 @@ export default function AssignmentDetailsModal({
                 onPress={handleCall}
               >
                 <Text style={styles.actionText}>Llamar</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }, styles.actionButton, styles.navigateButton]}
+                onPress={handleNavigate}
+              >
+                <Text style={styles.actionText}>Navegar</Text>
               </Pressable>
             </View>
 
@@ -237,6 +269,9 @@ const styles = StyleSheet.create({
   },
   callButton: {
     backgroundColor: CustomColors.primary,
+  },
+  navigateButton: {
+    backgroundColor: CustomColors.info,
   },
   actionText: {
     color: CustomColors.white,
