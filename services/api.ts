@@ -454,33 +454,51 @@ export const api = {
 };
 
 // Función para verificar la conectividad con el servidor
-// Nota: No hace solicitud HTTP real, solo verifica que la URL base esté configurada
-// La conectividad real se verifica a través del WebSocket
-export const checkApiConnectivity = async () => {
-    try {
-        // Simplemente verificar que tenemos una URL válida
-        const baseUrl = getBaseUrl();
-        
-        if (!baseUrl || baseUrl === '') {
-            return {
-                success: false,
-                error: 'URL del servidor no configurada'
-            };
-        }
+// Hace una petición real a un endpoint liviano (app-version/delivery).
+// Cualquier respuesta HTTP significa que el servidor está reachable.
+// Solo errores de red o timeout significan desconexión.
+export const checkApiConnectivity = async (timeoutMs: number = 5000) => {
+    const baseUrl = getBaseUrl();
 
-        // Retornar éxito si la URL está configurada
-        // La verificación real de conectividad se hace al intentar login o conectar WebSocket
-        return {
-            success: true,
-            status: 200,
-            message: 'Configuración de servidor correcta'
-        };
-    } catch (error:any) {
-        console.log('API connectivity check error:', error);
+    if (!baseUrl || baseUrl === '') {
         return {
             success: false,
-            error: error instanceof Error ? error.message : 'Error al verificar la conectividad'
+            error: 'URL del servidor no configurada'
         };
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const url = getApiUrl(ApiEndpoints.AppVersionDelivery);
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: defaultOptions.headers,
+            signal: controller.signal,
+        });
+
+        // Cualquier respuesta HTTP (incluso 4xx/5xx) indica que el servidor está activo
+        return {
+            success: true,
+            status: response.status,
+            message: 'Servidor reachable'
+        };
+    } catch (error: any) {
+        const isTimeout = error?.name === 'AbortError' || controller.signal.aborted;
+        const errorMessage = isTimeout
+            ? `Timeout tras ${timeoutMs}ms`
+            : error instanceof Error
+                ? error.message
+                : 'Error al verificar la conectividad';
+
+        console.log('API connectivity check error:', errorMessage);
+        return {
+            success: false,
+            error: errorMessage
+        };
+    } finally {
+        clearTimeout(timeoutId);
     }
 };
 

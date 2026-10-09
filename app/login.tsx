@@ -38,10 +38,7 @@ export default function LoginScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
     const [appVersion, setAppVersion] = useState('');
-    const [apiStatus, setApiStatus] = useState<{ connected: boolean, message: string }>({
-        connected: true,
-        message: ''
-    });
+    const [apiStatus, setApiStatus] = useState<boolean | null>(null);
 
     const { login: authLogin } = useAuth();
     const login = authLogin as (email: string, password: string) => Promise<LoginResult>;
@@ -49,26 +46,19 @@ export default function LoginScreen() {
     React.useEffect(() => {
         const controller = new AbortController();
 
-        const checkConnection = async () => {
-            const result = await checkApiConnectivity();
-            if (!controller.signal.aborted) {
-                setApiStatus({
-                    connected: result.success,
-                    message: result.success ? '' : `Error de conexión: ${result.error}`
-                });
-            }
-        };
-
-        checkConnection();
-
         fetch(getApiUrl(ApiEndpoints.AppVersionDelivery), { signal: controller.signal })
             .then((res) => res.json())
             .then((data) => {
                 if (!controller.signal.aborted) {
                     setAppVersion(data.version);
+                    setApiStatus(true);
                 }
             })
-            .catch(() => {});
+            .catch(() => {
+                if (!controller.signal.aborted) {
+                    setApiStatus(false);
+                }
+            });
 
         return () => controller.abort();
     }, []);
@@ -93,16 +83,10 @@ export default function LoginScreen() {
     }, []);
 
     const checkServerConnection = async () => {
-        setApiStatus({
-            connected: true,
-            message: 'Verificando conexión...'
-        });
+        setApiStatus(null);
 
         const result = await checkApiConnectivity();
-        setApiStatus({
-            connected: result.success,
-            message: result.success ? '' : `Error de conexión: ${result.error}`
-        });
+        setApiStatus(result.success);
 
         return result.success;
     };
@@ -212,33 +196,38 @@ export default function LoginScreen() {
                         />
                         <Text style={styles.title}>Tiendas Dominicanas Mensajeria</Text>
                         <Text style={styles.apiUrl}>
-                            {__DEV__ ? (
+                            {apiStatus === null ? (
+                                <>
+                                    <Text>{__DEV__ ? `API: ${API_URL} ` : 'Verificando...'} {' '}</Text>
+                                    <Text style={{
+                                        color: CustomColors.warning,
+                                        fontWeight: 'bold'
+                                    }}>
+                                        ●
+                                    </Text>
+                                </>
+                            ) : __DEV__ ? (
                                 <>
                                     <Text>API: {API_URL} {' '}</Text>
                                     <Text style={{
-                                        color: apiStatus.connected ? CustomColors.success : CustomColors.error,
+                                        color: apiStatus ? CustomColors.success : CustomColors.error,
                                         fontWeight: 'bold'
                                     }}>
-                                        {apiStatus.connected ? '●' : '○'}
+                                        {apiStatus ? '●' : '○'}
                                     </Text>
                                 </>
                             ) : (
                                 <>
-                                    <Text>{apiStatus.connected ? 'CONECTADO' : 'DESCONECTADO'} {' '}</Text>
+                                    <Text>{apiStatus ? 'CONECTADO' : 'DESCONECTADO'} {' '}</Text>
                                     <Text style={{
-                                        color: apiStatus.connected ? CustomColors.success : CustomColors.error,
+                                        color: apiStatus ? CustomColors.success : CustomColors.error,
                                         fontWeight: 'bold'
                                     }}>
-                                        {apiStatus.connected ? '●' : '○'}
+                                        {apiStatus ? '●' : '○'}
                                     </Text>
                                 </>
                             )}
                         </Text>
-                        {apiStatus.message ? (
-                            <Pressable onPress={checkServerConnection}>
-                                <Text style={styles.apiErrorMessage}>{apiStatus.message}</Text>
-                            </Pressable>
-                        ) : null}
                     </View>
 
                     <View style={styles.formContainer}>
@@ -338,15 +327,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         marginTop: 5,
         opacity: 0.7,
-    },
-    apiErrorMessage: {
-        color: CustomColors.error,
-        fontSize: 12,
-        marginTop: 5,
-        textAlign: 'center',
-        padding: 5,
-        backgroundColor: 'rgba(229, 57, 53, 0.1)',
-        borderRadius: 4,
     },
     logo: {
         width: 250,
