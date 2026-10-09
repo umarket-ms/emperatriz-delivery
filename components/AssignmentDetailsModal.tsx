@@ -12,6 +12,7 @@ import {
 import { Image } from "expo-image";
 import { DeliveryItemAdapter } from "@/interfaces/delivery/deliveryAdapters";
 import { AssignmentType } from "@/utils/enum";
+import { IDeliveryStatus } from "@/interfaces/delivery/deliveryStatus";
 import { CustomColors } from "@/constants/CustomColors";
 import { Capitalize } from "@/utils/capitalize";
 import { openWhatsAppMessage } from "@/utils/whatsapp";
@@ -88,6 +89,7 @@ export default function AssignmentDetailsModal({
   const detailsWithImages = getDetailsWithImages();
   const fullAddress = assignment.deliveryAddress || "";
   const siteType = assignment.type === AssignmentType.PICKUP ? 'RECOGIDA' : 'ENTREGA';
+  const canNavigate = assignment.deliveryStatus?.title === IDeliveryStatus.IN_PROGRESS;
       
   return (
     <Modal
@@ -135,12 +137,23 @@ export default function AssignmentDetailsModal({
                 <Text style={styles.actionText}>Llamar</Text>
               </Pressable>
               <Pressable
-                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }, styles.actionButton, styles.navigateButton]}
-                onPress={handleNavigate}
+                style={({ pressed }) => [
+                  { opacity: !canNavigate ? 0.45 : pressed ? 0.7 : 1 },
+                  styles.actionButton,
+                  styles.navigateButton,
+                ]}
+                onPress={canNavigate ? handleNavigate : undefined}
+                disabled={!canNavigate}
               >
                 <Text style={styles.actionText}>Navegar</Text>
               </Pressable>
             </View>
+
+            {!canNavigate && (
+              <Text style={styles.navigateHint}>
+                Inicia esta entrega para poder navegar
+              </Text>
+            )}
 
             {detailsWithImages &&
               detailsWithImages.filter(
@@ -278,6 +291,13 @@ const styles = StyleSheet.create({
   actionText: {
     color: CustomColors.white,
     fontWeight: "700",
+  },
+  navigateHint: {
+    color: CustomColors.warning,
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: -4,
   },
   productsSection: {
     borderTopWidth: 1,
