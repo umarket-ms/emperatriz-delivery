@@ -197,9 +197,11 @@ const styles = StyleSheet.create({
     backgroundColor: CustomColors.overlay,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 80,
   },
   container: {
-    width: "90%",
+    width: "100%",
     backgroundColor: CustomColors.backgroundDark,
     borderRadius: 18,
     padding: 16,
