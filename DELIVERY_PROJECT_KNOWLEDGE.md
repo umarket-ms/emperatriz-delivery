@@ -669,7 +669,37 @@ Archivo: `package.json`
 
 ---
 
-## 17) Conclusión
+## 17) Flujo de despliegue (EAS Build + OTA Updates)
+
+Proyecto EAS: `emperatriz-delivery` (owner `valentinrod`, projectId en `app.json → extra.eas.projectId`). No hay CI/CD: todo es manual vía scripts npm.
+
+### 17.1 Builds de binario (solo si cambia código nativo o se requiere nueva versión)
+
+- `npm run build:android:preview` → perfil `preview` en `eas.json`: APK de distribución interna (link/QR de descarga para instalar a mano en los dispositivos), **canal `preview`**.
+- `npm run build:android` → perfil `production`: AAB con auto-increment de build number (versión remota), **canal `production`** (Play Store).
+- `eas build:list` / `eas build:view` para revisar builds.
+
+### 17.2 Actualizaciones OTA (cambios solo JS, sin tocar código nativo)
+
+- `npm run update:preview` → `eas update --branch preview` → llega a binarios construidos con canal `preview`.
+- `npm run update` → `eas update --branch production` → llega a binarios construidos con canal `production`.
+
+En el dispositivo, al abrir la app (`core/hooks/useOTAUpdates.ts`, montado en `app/_layout.tsx`):
+
+1. Consulta el endpoint backend `app-version` (`utils/api-endpoints.ts → ApiEndpoints.AppVersion`) y obtiene la `minVersion`.
+2. Si la versión instalada (`Constants.expoConfig.version`) es **menor** que la `minVersion`: muestra `components/ForceUpdateScreen.tsx` e intenta aplicar el update (force update).
+3. Si no: fetch silencioso en background del update disponible y `Updates.reloadAsync()` (`services/otaUpdates.service.ts`).
+
+### 17.3 Reglas y restricciones
+
+- `runtimeVersion.policy = appVersion` (`app.json`): un `eas update` **solo aplica a binarios con la misma versión** (ej. 1.0.0). Si se cambia la versión o se agregan dependencias nativas → hacer **nuevo build + reinstalar** en los dispositivos.
+- `updates.enabled` en `app.json` **debe permanecer `true`**; si se pone `false`, los builds nuevos salen sin expo-updates y el flujo OTA deja de funcionar (histórico: se desactivó temporalmente en commit `5294fc4` y se reactivó).
+- `checkAutomatically: "ON_LOAD"`: la app chequea updates al arrancar; el hook `useOTAUpdates` además fuerza la lógica de versión mínima.
+- El hook es no-op en `__DEV__` (Expo Go / desarrollo).
+
+---
+
+## 18) Conclusión
 
 El proyecto `delivery` tiene una separación funcional bastante clara entre UI, estado, servicios y adaptadores de dominio. Para cambios de negocio, los puntos más sensibles están en:
 

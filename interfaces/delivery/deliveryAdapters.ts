@@ -30,6 +30,8 @@ export interface DeliveryItemAdapter {
   deliveryVerificationCode?: string;
   isGroup: boolean;
   completedAt?: Date;
+  /** Hora programada por el cliente (estado 'programado'; ISO 8601). */
+  scheduledAt?: string | null;
 }
 
 // Interfaz para representar un grupo de entregas
@@ -70,6 +72,7 @@ export function adaptDeliveriesToAdapter(deliveries: IDeliveryAssignmentEntity[]
       enterprise: delivery.enterprise.title,
       deliveryVerificationCode: delivery.deliveryVerificationCode,
       completedAt: delivery.completedAt,
+      scheduledAt: delivery.scheduledAt ?? null,
     }));    
   } catch (error:any) {
     console.log('Error al adaptar entregas:', error);

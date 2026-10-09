@@ -28,6 +28,8 @@ import CenterLocationButton from "@/components/trip-map-screen/components/Center
 import WebSocketStatusIndicator from "@/components/trip-map-screen/components/WebSocketStatusIndicator";
 import TripMapLoadingState from "@/components/trip-map-screen/components/TripMapLoadingState";
 import TripMapErrorState from "@/components/trip-map-screen/components/TripMapErrorState";
+import ScheduledDeliveriesPanel from "@/components/trip-map-screen/components/ScheduledDeliveriesPanel";
+import { useScheduledDeliveries } from "@/components/trip-map-screen/hooks/useScheduledDeliveries";
 import ElementsBottomSheet from "@/components/ElementsBottomSheet";
 import type { ElementsBottomSheetMethods } from "@/components/ElementsBottomSheet";
 import { Ionicons } from "@expo/vector-icons";
@@ -45,6 +47,9 @@ export default function TripMapScreen() {
   } = useRouteContext();
 
   const { allDeliveries } = useDelivery();
+
+  // ===== Entregas programadas (hora pactada con el cliente) =====
+  const { scheduledDeliveries } = useScheduledDeliveries(allDeliveries);
 
   // ===== Bottom Sheet =====
   const bottomSheetRef = useRef<ElementsBottomSheetMethods>(null);
@@ -313,6 +318,8 @@ export default function TripMapScreen() {
         <View style={styles.container}>
           <TripMapView webViewRef={webViewRef} onMessage={handleWebViewMessage} />
 
+          <ScheduledDeliveriesPanel scheduledDeliveries={scheduledDeliveries} />
+
           <CenterLocationButton
             currentPosition={currentPosition}
             onCenter={() => {
@@ -373,6 +380,8 @@ export default function TripMapScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <View style={styles.container}>
         <TripMapView webViewRef={webViewRef} onMessage={handleWebViewMessage} />
+
+        <ScheduledDeliveriesPanel scheduledDeliveries={scheduledDeliveries} />
 
         <CenterLocationButton
           currentPosition={currentPosition}

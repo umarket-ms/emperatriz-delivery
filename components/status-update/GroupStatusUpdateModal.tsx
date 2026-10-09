@@ -330,6 +330,14 @@ export default function GroupStatusUpdateModal({
       // Update the DeliveryContext with the fresh list
       handleDriversGroupAssigned(freshDeliveries);
 
+      const wasScheduled = selectedStatus === IDeliveryStatus.SCHEDULED && !!commonScheduledAt;
+      const scheduledAtLabel = commonScheduledAt
+        ? new Date(commonScheduledAt).toLocaleString("es-DO", {
+            dateStyle: "short",
+            timeStyle: "short",
+          })
+        : "";
+
       // Reset all fields
       setSelectedStatusRaw(null);
       setNote("");
@@ -342,6 +350,14 @@ export default function GroupStatusUpdateModal({
       resetVerificationCode();
       setScheduledAt(null);
       setShowSchedulePicker(false);
+
+      if (wasScheduled) {
+        Alert.alert(
+          "Entrega programada",
+          `Se liberará automáticamente el ${scheduledAtLabel} y se insertará en tu ruta. Mientras tanto, continúa con el resto de las entregas.`,
+          [{ text: "OK" }],
+        );
+      }
 
       onSuccess?.(selectedStatus, freshDeliveries);
       onClose();
