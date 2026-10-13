@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   Alert,
   FlatList,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { Text } from '@/components/Themed';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomColors } from '@/constants/CustomColors';
@@ -26,6 +27,12 @@ export default function AvailableScreen() {
     onRefresh,
     fetchAvailable,
   } = useAvailableDelivery();
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAvailable(true);
+    }, [fetchAvailable]),
+  );
 
   const handleClaim = async (shipmentId: string) => {
     const claimErrorMessage = await claim(shipmentId);

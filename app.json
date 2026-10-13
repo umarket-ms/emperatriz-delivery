@@ -50,7 +50,8 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA"
       ],
       "package": "com.valentinrod.tiendasdominicanas.mensajeria",
       "intentFilters": [
@@ -134,6 +135,13 @@
           "organization": "tiendas-dominicanas",
           "project": "delivery",
           "url": "https://glitchtip.tiendasdominicanas.com.do"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La aplicación necesita acceso a tu galería para adjuntar evidencia de entrega.",
+          "cameraPermission": "La aplicación necesita acceso a tu cámara para tomar fotos de evidencia de entrega."
         }
       ]
     ],
