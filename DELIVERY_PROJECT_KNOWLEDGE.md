@@ -344,7 +344,7 @@ Archivo: `services/api.ts`
 
 ### Funciones centrales
 
-- `getBaseUrl()`, `API_URL`, `PRODUCT_IMAGE_URL`
+- `getBaseUrl()`, `API_URL`, `buildFileUrl`
 - `apiRequest<T>()`
 - wrapper `api.get/post/put/patch/delete/postFormData`
 - refresh token automático ante `401` (si hay `refresh_token`)

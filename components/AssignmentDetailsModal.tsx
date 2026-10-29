@@ -16,7 +16,7 @@ import { IDeliveryStatus } from "@/interfaces/delivery/deliveryStatus";
 import { CustomColors } from "@/constants/CustomColors";
 import { Capitalize } from "@/utils/capitalize";
 import { openWhatsAppMessage } from "@/utils/whatsapp";
-import { PRODUCT_IMAGE_URL } from "@/services/api";
+import { buildFileUrl } from "@/services/api";
 
 export interface AssignmentDetailsModalProps {
   visible: boolean;
@@ -169,9 +169,7 @@ export default function AssignmentDetailsModal({
                     {detailsWithImages
                       .filter((detail) => detail.type === 'PRODUCT')
                       .map((detail, idx) => {
-                        const imageUrl = detail.imageUrl
-                          ? `${PRODUCT_IMAGE_URL}${detail.imageUrl}`
-                          : null;
+                        const imageUrl = buildFileUrl(detail.imageUrl);
                         return (
                           <View key={detail.id || idx} style={styles.productItem}>
                             {imageUrl ? (

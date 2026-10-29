@@ -42,14 +42,27 @@ const getApiBaseUrl = () => {
     return `${baseUrl}/api/v1`;
 };
 
-const getProductImageUrl = () => {
-    const baseUrl = getApiBaseUrl();  
-    return `${baseUrl}/files/product/`;
-};
-
 // URL base para todas las peticiones
 export const API_URL = getApiBaseUrl();
-export const PRODUCT_IMAGE_URL = getProductImageUrl();
+
+/**
+ * Resuelve la URL de un archivo/imagen de producto.
+ *
+ * - Si el valor ya viene como URL absoluta (p. ej. la que resuelve el backend
+ *   vía API_PUBLIC_PREFIX → `https://api.../api/v1/files/proxy?key=...`),
+ *   se usa tal cual (evita el doble prefijo).
+ * - Si viene como key S3 (`files_key`, p. ej. `products/2/xxx.png`), se sirve
+ *   a través del endpoint público `files/proxy` (no requiere auth ni el
+ *   query `enterprise=` que exige el endpoint legacy `files/product/:name`).
+ *
+ * @param value - URL absoluta o key S3 (puede ser null/undefined)
+ * @returns URL completa lista para `<Image source={{ uri }}>` o null
+ */
+export const buildFileUrl = (value?: string | null): string | null => {
+    if (!value) return null;
+    if (/^https?:\/\//.test(value)) return value;
+    return `${API_URL}/files/proxy?key=${encodeURIComponent(value)}`;
+};
 
 /**
  * Construye la URL completa de un endpoint de la API.
