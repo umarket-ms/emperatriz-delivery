@@ -6,6 +6,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
 import 'react-native-reanimated';
 import '../src/lib/sentry';
+// Import con efecto side-effect: registra la background location task de
+// expo-task-manager a nivel de scope superior (requisito de la API). No quitar.
+import '@/services/backgroundLocationTask';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
@@ -42,6 +45,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { CustomColors } from '@/constants/CustomColors';
 import LoadingScreen from '@/components/LoadingScreen';
 import { NotificationHandler } from '@/components/NotificationHandler';
+import BackgroundLocationPermissionModal from '@/components/BackgroundLocationPermissionModal';
 import * as NavigationBar from 'expo-navigation-bar';
 import { api, checkApiConnectivity } from '@/services/api';
 import { setupDeepLinkListeners } from '@/utils/deepLinkHandler';
@@ -246,6 +250,21 @@ function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Muestra el modal de consentimiento de ubicación en background cuando el
+ * usuario está autenticado y verificado (listo para trabajar). El modal
+ * internamente decide si corresponde mostrarlo (solo Android, sin permiso
+ * otorgado, y con cooldown de 90 días).
+ */
+function BackgroundLocationPermissionGate() {
+  const { isAuthenticated, user } = useAuth();
+
+  const ready =
+    isAuthenticated && !!user?.isEmailVerified && !user?.mustChangePassword;
+
+  return <BackgroundLocationPermissionModal trigger={ready} />;
+}
+
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
@@ -285,6 +304,7 @@ function RootLayoutNav() {
                   </Stack>
 
                   <NotificationHandler />
+                  <BackgroundLocationPermissionGate />
                 </ProtectedRouteGuard>
                 </ThemeProvider>
               </AvailableDeliveryProvider>

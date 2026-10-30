@@ -1,6 +1,13 @@
 import * as Location from "expo-location";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus, Platform } from "react-native";
 import { socketService } from "./websocketService";
+
+/**
+ * Nombre único de la tarea de ubicación en background.
+ * Registrada vía TaskManager.defineTask en services/backgroundLocationTask.ts
+ * (importado desde app/_layout.tsx para que siempre esté en scope de nivel superior).
+ */
+export const COURIER_BACKGROUND_LOCATION_TASK = "COURIER_BACKGROUND_LOCATION";
 
 /**
  * Interface para la ubicación del mensajero
@@ -69,6 +76,8 @@ class CourierLocationTrackingService {
   private userId: number | null = null;
   private isFetchingLocation: boolean = false;
   private manualLocationOverride: { lat: number; lng: number; accuracy: number } | null = null;
+  private hasBackgroundPermission: boolean = false;
+  private isBackgroundUpdatesActive: boolean = false;
 
   /**
    * Inicializa el servicio con la configuración
@@ -142,6 +151,174 @@ class CourierLocationTrackingService {
       // console.error('[LocationTracking] Error al solicitar permisos:', error);
       return false;
     }
+  }
+
+  /**
+   * Solicita el permiso de ubicación en background ("Permitir todo el tiempo").
+   *
+   * En Android 11+ esto abre la pantalla de ajustes del sistema (no hay diálogo),
+   * por lo que solo debe llamarse después de que el usuario haya dado consentimiento
+   * informado vía el modal (BackgroundLocationPermissionModal).
+   *
+   * @returns true si el permiso de background fue otorgado
+   */
+  async requestBackgroundPermissions(): Promise<boolean> {
+    try {
+      if (Platform.OS === "web") {
+        return false;
+      }
+
+      // El permiso de foreground es requisito previo para el de background
+      const foregroundGranted = await this.hasPermissions();
+      if (!foregroundGranted) {
+        const granted = await this.requestPermissions();
+        if (!granted) {
+          return false;
+        }
+      }
+
+      const { status } = await Location.requestBackgroundPermissionsAsync();
+      this.hasBackgroundPermission = status === "granted";
+
+      if (this.hasBackgroundPermission) {
+        console.log("[LocationTracking] ✅ Permiso de background otorgado");
+        // Si el tracking ya está activo, arrancar las updates en background
+        if (this.isTracking) {
+          await this.startBackgroundUpdates();
+        }
+      } else {
+        console.warn(
+          "[LocationTracking] ⚠️ Permiso de background no otorgado (solo foreground)",
+        );
+      }
+
+      return this.hasBackgroundPermission;
+    } catch (error: any) {
+      console.error(
+        "[LocationTracking] Error al solicitar permiso de background:",
+        error,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Verifica si el permiso de ubicación en background está otorgado
+   */
+  async hasBackgroundPermissions(): Promise<boolean> {
+    try {
+      if (Platform.OS === "web") {
+        return false;
+      }
+      const { status } = await Location.getBackgroundPermissionsAsync();
+      this.hasBackgroundPermission = status === "granted";
+      return this.hasBackgroundPermission;
+    } catch (error: any) {
+      return false;
+    }
+  }
+
+  /**
+   * Inicia las actualizaciones de ubicación en background
+   * (Location.startLocationUpdatesAsync + foreground service en Android).
+   *
+   * A diferencia de watchPositionAsync, estas updates continúan mientras la app
+   * está en segundo plano (p. ej. con Waze en primer plano). Los eventos llegan
+   * a la task registrada en services/backgroundLocationTask.ts, que nos devuelve
+   * el control vía onBackgroundLocation().
+   */
+  private async startBackgroundUpdates(): Promise<void> {
+    try {
+      if (Platform.OS === "web") {
+        return;
+      }
+
+      if (!this.hasBackgroundPermission) {
+        return;
+      }
+
+      // Guard: no iniciar dos veces (restartTracking puede correr al volver de background)
+      const alreadyStarted = await Location.hasStartedLocationUpdatesAsync(
+        COURIER_BACKGROUND_LOCATION_TASK,
+      ).catch(() => false);
+
+      if (alreadyStarted) {
+        console.log(
+          "[LocationTracking] Background updates ya activas, omitiendo start",
+        );
+        this.isBackgroundUpdatesActive = true;
+        return;
+      }
+
+      await Location.startLocationUpdatesAsync(COURIER_BACKGROUND_LOCATION_TASK, {
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: this.config.updateInterval,
+        distanceInterval: this.config.minDistance,
+        deferredUpdatesInterval: this.config.updateInterval,
+        pausesUpdatesAutomatically: false,
+        showsBackgroundLocationIndicator: true,
+        foregroundService: {
+          notificationTitle: "Tiendas Dominicanas Delivery",
+          notificationBody: "Seguimiento de ubicación activo durante tu viaje",
+          notificationColor: "#E53935",
+          killServiceOnDestroy: false,
+        },
+      });
+
+      this.isBackgroundUpdatesActive = true;
+      console.log("[LocationTracking] ✅ Background location updates iniciadas");
+    } catch (error: any) {
+      console.error(
+        "[LocationTracking] Error al iniciar background updates:",
+        error,
+      );
+      this.isBackgroundUpdatesActive = false;
+    }
+  }
+
+  /**
+   * Detiene las actualizaciones de ubicación en background
+   * (y por ende el foreground service / notificación asociada).
+   */
+  private async stopBackgroundUpdates(): Promise<void> {
+    try {
+      if (Platform.OS === "web") {
+        return;
+      }
+
+      const started = await Location.hasStartedLocationUpdatesAsync(
+        COURIER_BACKGROUND_LOCATION_TASK,
+      ).catch(() => false);
+
+      if (started) {
+        await Location.stopLocationUpdatesAsync(COURIER_BACKGROUND_LOCATION_TASK);
+        console.log(
+          "[LocationTracking] Background location updates detenidas",
+        );
+      }
+
+      this.isBackgroundUpdatesActive = false;
+    } catch (error: any) {
+      console.error(
+        "[LocationTracking] Error al detener background updates:",
+        error,
+      );
+      this.isBackgroundUpdatesActive = false;
+    }
+  }
+
+  /**
+   * Entrada pública para las ubicaciones recibidas desde la background task.
+   * Enruta al mismo pipeline (throttling + envío) que el watchPositionAsync.
+   */
+  onBackgroundLocation(location: Location.LocationObject): void {
+    this.lastGpsCallbackAt = Date.now();
+    // Deduplicación con el fallback timer (mismo criterio que el callback GPS foreground)
+    if (this.fallbackTimerId !== null) {
+      this.stopFallbackTimer();
+      this.startFallbackTimer();
+    }
+    this.handleLocationUpdate(location);
   }
 
   /**
@@ -244,6 +421,17 @@ class CourierLocationTrackingService {
       // Verificar permisos periódicamente
       this.startPermissionCheck();
 
+      // Iniciar background updates si el permiso "todo el tiempo" está otorgado
+      // (permite seguir enviando ubicación con Waze u otra app en primer plano)
+      this.hasBackgroundPermission = await this.hasBackgroundPermissions();
+      if (this.hasBackgroundPermission) {
+        await this.startBackgroundUpdates();
+      } else {
+        console.log(
+          "[LocationTracking] ℹ️ Sin permiso de background: tracking solo en foreground",
+        );
+      }
+
       return true;
     } catch (error: any) {
       // console.error('[LocationTracking] ❌ Error al iniciar tracking:', error);
@@ -273,6 +461,9 @@ class CourierLocationTrackingService {
 
       this.stopFallbackTimer();
       this.stopPermissionCheck();
+
+      // Detener background updates (también elimina la notificación del servicio)
+      await this.stopBackgroundUpdates();
 
       this.isTracking = false;
       this.lastSentLocation = null;
@@ -304,6 +495,19 @@ class CourierLocationTrackingService {
       if (this.isTracking && this.fallbackTimerId === null) {
         this.startFallbackTimer();
       }
+
+      // Si el usuario acaba de otorgar el permiso de background (p. ej. desde
+      // ajustes tras el modal), intentar arrancar las background updates ahora.
+      if (this.isTracking && !this.isBackgroundUpdatesActive) {
+        const hasBackground = await this.hasBackgroundPermissions();
+        if (hasBackground) {
+          console.log(
+            "[LocationTracking] Permiso de background recién otorgado, iniciando updates",
+          );
+          await this.startBackgroundUpdates();
+        }
+      }
+
       const timeInBackground = Date.now() - this.lastBackgroundTime;
       if (this.isTracking && timeInBackground > 30000) {
         console.log(
@@ -313,8 +517,12 @@ class CourierLocationTrackingService {
       }
     } else if (state === "background") {
       this.lastBackgroundTime = Date.now();
-      // Pausar fallback timer en background
-      this.stopFallbackTimer();
+      // Pausar fallback timer en background SOLO si no hay background updates
+      // activas (si las hay, la task de background sigue enviando ubicación y
+      // el timer solo introduciría ruido).
+      if (!this.isBackgroundUpdatesActive) {
+        this.stopFallbackTimer();
+      }
     }
   };
 
@@ -586,6 +794,8 @@ class CourierLocationTrackingService {
     lastSentTime: number;
     hasUserId: boolean;
     manualLocation: { lat: number; lng: number; accuracy: number } | null;
+    hasBackgroundPermission: boolean;
+    isBackgroundUpdatesActive: boolean;
   } {
     return {
       isTracking: this.isTracking,
@@ -593,6 +803,8 @@ class CourierLocationTrackingService {
       lastSentTime: this.lastSentTime,
       hasUserId: this.userId !== null,
       manualLocation: this.manualLocationOverride,
+      hasBackgroundPermission: this.hasBackgroundPermission,
+      isBackgroundUpdatesActive: this.isBackgroundUpdatesActive,
     };
   }
 
