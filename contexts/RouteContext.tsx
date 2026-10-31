@@ -68,6 +68,62 @@ function prepareRouteData(allDeliveries: DeliveryItemAdapter[]) {
   return { pendingDeliveries, coordinates };
 }
 
+/**
+ * Red de seguridad: valida que la respuesta del backend de ruta optimizada
+ * contenga los campos mínimos (geometry, waypoints) antes de acceder a sus
+ * propiedades. Evita el TypeError "Cannot read property 'geometry' of null"
+ * cuando el backend devuelve una respuesta vacía o incompleta.
+ */
+function buildTripDataFromBackend(optimizedRoute: any): OsrmTripResult {
+  if (!optimizedRoute || typeof optimizedRoute !== 'object') {
+    throw new Error('El backend no devolvió una ruta optimizada válida (respuesta vacía). Intenta de nuevo.');
+  }
+  if (
+    !optimizedRoute.geometry ||
+    !Array.isArray(optimizedRoute.geometry.coordinates) ||
+    optimizedRoute.geometry.coordinates.length === 0
+  ) {
+    throw new Error('La ruta optimizada no incluye geometría válida. Intenta de nuevo.');
+  }
+  if (!Array.isArray(optimizedRoute.waypoints) || optimizedRoute.waypoints.length === 0) {
+    throw new Error('La ruta optimizada no incluye puntos de entrega (waypoints).');
+  }
+
+  const validWaypoints = optimizedRoute.waypoints.filter(
+    (wp: any) =>
+      wp?.location &&
+      typeof wp.location.lat === 'number' &&
+      typeof wp.location.lng === 'number' &&
+      Number.isFinite(wp.location.lat) &&
+      Number.isFinite(wp.location.lng),
+  );
+
+  if (validWaypoints.length === 0) {
+    throw new Error('Los puntos de la ruta optimizada no tienen coordenadas válidas.');
+  }
+
+  return {
+    code: 'Ok',
+    trips: [{
+      geometry: optimizedRoute.geometry,
+      distance: optimizedRoute.totalDistance ?? 0,
+      duration: optimizedRoute.totalDuration ?? 0,
+      legs: [],
+      weight_name: 'routability',
+      weight: optimizedRoute.totalDuration ?? 0,
+    }],
+    waypoints: validWaypoints.map((wp: any, index: number) => ({
+      waypoint_index: index,
+      trips_index: 0,
+      location: [wp.location.lng, wp.location.lat],
+      name: wp.address,
+      distance: 0,
+      hint: '',
+      assignmentId: wp.assignmentId,
+    })),
+  };
+}
+
 export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
   const { data: tripData, loading: tripLoading, error: tripError, fetchTrip, setTripData } = useOsrmTrip();
   const [tripDeliveries, setTripDeliveries] = useState<DeliveryItemAdapter[]>([]);
@@ -148,29 +204,10 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
       setTripDeliveries(pendingDeliveries);
 
       // Paso 3: Usar la geometría del backend directamente
-      // El backend ya calculó con OSRM, solo necesitamos mostrar el resultado
-      
-      // Convertir a formato compatible con el mapa
-      const tripDataFromBackend: OsrmTripResult = {
-        code: 'Ok',
-        trips: [{
-          geometry: optimizedRoute.geometry,
-          distance: optimizedRoute.totalDistance,
-          duration: optimizedRoute.totalDuration,
-          legs: [],
-          weight_name: 'routability',
-          weight: optimizedRoute.totalDuration,
-        }],
-        waypoints: optimizedRoute.waypoints.map((wp: any, index: number) => ({
-          waypoint_index: index,
-          trips_index: 0,
-          location: [wp.location.lng, wp.location.lat],
-          name: wp.address,
-          distance: 0,
-          hint: '',
-          assignmentId: wp.assignmentId,
-        }))
-      };
+      // El backend ya calculó con OSRM, solo necesitamos mostrar el resultado.
+      // buildTripDataFromBackend valida la respuesta antes de acceder a .geometry
+      // (red de seguridad contra respuestas null/incompletas del backend).
+      const tripDataFromBackend = buildTripDataFromBackend(optimizedRoute);
 
       setTripData(tripDataFromBackend);
       // Navegación eliminada: Ruta es ahora la pantalla principal
@@ -255,26 +292,8 @@ export const RouteProvider: React.FC<RouteProviderProps> = ({ children }) => {
       }
       setTripDeliveries(routeData.pendingDeliveries);
 
-      const tripDataFromBackend: OsrmTripResult = {
-        code: 'Ok',
-        trips: [{
-          geometry: optimizedRoute.geometry,
-          distance: optimizedRoute.totalDistance,
-          duration: optimizedRoute.totalDuration,
-          legs: [],
-          weight_name: 'routability',
-          weight: optimizedRoute.totalDuration,
-        }],
-        waypoints: optimizedRoute.waypoints.map((wp: any, index: number) => ({
-          waypoint_index: index,
-          trips_index: 0,
-          location: [wp.location.lng, wp.location.lat],
-          name: wp.address,
-          distance: 0,
-          hint: '',
-          assignmentId: wp.assignmentId,
-        })),
-      };
+      // Red de seguridad: buildTripDataFromBackend valida la respuesta del backend
+      const tripDataFromBackend = buildTripDataFromBackend(optimizedRoute);
 
       setTripData(tripDataFromBackend);
       console.log('[RouteContext] ✅ Ruta recalculada correctamente via backend');

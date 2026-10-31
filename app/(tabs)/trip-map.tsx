@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useReducer } from "react";
-import { View, Text, ActivityIndicator, Pressable, StyleSheet } from "react-native";
+import { View, Text, ActivityIndicator, Pressable, StyleSheet, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { CustomColors } from "@/constants/CustomColors";
@@ -127,6 +127,22 @@ export default function TripMapScreen() {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [remainingDistance, setRemainingDistance] = useState<number>(0);
   const [remainingDuration, setRemainingDuration] = useState<number>(0);
+
+  // ===== Refresh ruta optimizada (red de seguridad contra errores) =====
+  const handleRefreshRoute = useCallback(() => {
+    if (allDeliveries && allDeliveries.length > 0 && currentPosition) {
+      startRoutes(allDeliveries, currentPosition).catch((err: any) => {
+        const message = err?.message ?? "Error desconocido al actualizar la ruta";
+        console.log("[TripMapScreen] startRoutes failed:", message);
+        Alert.alert("No se pudo actualizar la ruta", message);
+      });
+    } else if (currentPosition) {
+      recalculateRoutesViaBackend(currentPosition).catch((err: any) => {
+        console.log("[TripMapScreen] recalculateRoutesViaBackend failed:", err);
+        Alert.alert("No se pudo actualizar la ruta", "Intenta de nuevo en unos segundos.");
+      });
+    }
+  }, [allDeliveries, currentPosition, startRoutes, recalculateRoutesViaBackend]);
 
   // ----- Refs for stale closures -----
   const recalculateRef = useRef(recalculateRoutesViaBackend);
@@ -337,13 +353,7 @@ export default function TripMapScreen() {
 
           <Pressable
             style={styles.refreshAssignmentsButton}
-            onPress={() => {
-              if (allDeliveries && allDeliveries.length > 0 && currentPosition) {
-                startRoutes(allDeliveries, currentPosition);
-              } else if (currentPosition) {
-                recalculateRoutesViaBackend(currentPosition);
-              }
-            }}
+            onPress={handleRefreshRoute}
             disabled={!currentPosition || tripLoading}
           >
             <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>
@@ -409,13 +419,7 @@ export default function TripMapScreen() {
 
         <Pressable
           style={styles.refreshAssignmentsButton}
-          onPress={() => {
-            if (allDeliveries && allDeliveries.length > 0 && currentPosition) {
-              startRoutes(allDeliveries, currentPosition);
-            } else if (currentPosition) {
-              recalculateRoutesViaBackend(currentPosition);
-            }
-          }}
+          onPress={handleRefreshRoute}
           disabled={!currentPosition || tripLoading}
         >
           <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>
