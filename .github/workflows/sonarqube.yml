@@ -1,10 +1,12 @@
 name: SonarQube Analysis
 
 on:
-  push:
-    branches: [main, staging-qa]
-  pull_request:
-    branches: [main, staging-qa]
+  # DESACTIVADO 2026-11-01: SonarQube ahora es solo-Tailscale
+  # (http://100.105.48.32:9000) y los runners de GitHub (ubuntu-latest,
+  # en la nube) no lo alcanzan. Se conserva solo disparo manual para
+  # re-activar cuando haya un runner con acceso a la tailnet o si
+  # SonarQube vuelve a exponerse.
+  workflow_dispatch:
 
 jobs:
   sonarqube:
