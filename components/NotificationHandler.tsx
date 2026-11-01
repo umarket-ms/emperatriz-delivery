@@ -9,7 +9,7 @@ import { FontAwesome } from '@expo/vector-icons';
 // Componente para renderizar el icono según el tipo de notificación
 const renderToastIcon = (type: NotificationType) => {
   let iconName: React.ComponentProps<typeof FontAwesome>['name'] = 'info-circle';
-  let iconColor = CustomColors.info;
+  let iconColor: string = CustomColors.info;
 
   switch (type) {
     case NotificationType.SUCCESS:

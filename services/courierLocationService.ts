@@ -1,6 +1,17 @@
 import * as Location from "expo-location";
-import { AppState, AppStateStatus } from "react-native";
-import { socketService } from "./websocketService";
+import { AppState, AppStateStatus, Platform } from "react-native";
+import { fetch } from "expo/fetch";
+import { streamService, StreamEventType } from "./eventStreamService";
+import { getApiUrl } from "./api";
+import { ApiEndpoints } from "../utils/api-endpoints";
+import { ensureFreshAccessToken } from "./tokenManager";
+
+/**
+ * Nombre único de la tarea de ubicación en background.
+ * Registrada vía TaskManager.defineTask en services/backgroundLocationTask.ts
+ * (importado desde app/_layout.tsx para que siempre esté en scope de nivel superior).
+ */
+export const COURIER_BACKGROUND_LOCATION_TASK = "COURIER_BACKGROUND_LOCATION";
 
 /**
  * Interface para la ubicación del mensajero
@@ -68,6 +79,9 @@ class CourierLocationTrackingService {
   private permissionCheckTimerId: ReturnType<typeof setInterval> | null = null;
   private userId: number | null = null;
   private isFetchingLocation: boolean = false;
+  private manualLocationOverride: { lat: number; lng: number; accuracy: number } | null = null;
+  private hasBackgroundPermission: boolean = false;
+  private isBackgroundUpdatesActive: boolean = false;
 
   /**
    * Inicializa el servicio con la configuración
@@ -76,17 +90,9 @@ class CourierLocationTrackingService {
     this.config = { ...DEFAULT_CONFIG, ...config };
     // console.log('[LocationTracking] Inicializado con config:', this.config);
 
-    // Registrar listeners para respuestas del backend
-    socketService.on("courier.location.ack", (data: any) => {
-      // console.log('[LocationTracking] ✅ ACK recibido del backend:', data);
-    });
-
-    socketService.on("courier.location.error", (error: any) => {
-      // console.error('[LocationTracking] ❌ Error recibido del backend:', error);
-    });
-
-    // Escuchar solicitudes de refresco de ubicación del backend (para asignación automática)
-    socketService.on("courier.location.refresh", async (_payload: any) => {
+    // Solicitudes de refresco de ubicación del backend (para asignación
+    // automática). Es un evento de BAJADA: llega por el stream SSE.
+    streamService.on(StreamEventType.REQUEST_LOCATION_REFRESH, async () => {
       console.log(
         "[LocationTracking] 🔄 Solicitud de refresco de ubicación recibida del backend",
       );
@@ -101,7 +107,7 @@ class CourierLocationTrackingService {
           speed: this.lastSentLocation.coords.speed ?? undefined,
           heading: this.lastSentLocation.coords.heading ?? undefined,
         };
-        socketService.emit("courier.location.update", cachedPayload);
+        void this.postLocation(cachedPayload);
       }
       // Luego intentar fresh GPS
       const location = await this.getCurrentLocation();
@@ -141,6 +147,174 @@ class CourierLocationTrackingService {
       // console.error('[LocationTracking] Error al solicitar permisos:', error);
       return false;
     }
+  }
+
+  /**
+   * Solicita el permiso de ubicación en background ("Permitir todo el tiempo").
+   *
+   * En Android 11+ esto abre la pantalla de ajustes del sistema (no hay diálogo),
+   * por lo que solo debe llamarse después de que el usuario haya dado consentimiento
+   * informado vía el modal (BackgroundLocationPermissionModal).
+   *
+   * @returns true si el permiso de background fue otorgado
+   */
+  async requestBackgroundPermissions(): Promise<boolean> {
+    try {
+      if (Platform.OS === "web") {
+        return false;
+      }
+
+      // El permiso de foreground es requisito previo para el de background
+      const foregroundGranted = await this.hasPermissions();
+      if (!foregroundGranted) {
+        const granted = await this.requestPermissions();
+        if (!granted) {
+          return false;
+        }
+      }
+
+      const { status } = await Location.requestBackgroundPermissionsAsync();
+      this.hasBackgroundPermission = status === "granted";
+
+      if (this.hasBackgroundPermission) {
+        console.log("[LocationTracking] ✅ Permiso de background otorgado");
+        // Si el tracking ya está activo, arrancar las updates en background
+        if (this.isTracking) {
+          await this.startBackgroundUpdates();
+        }
+      } else {
+        console.warn(
+          "[LocationTracking] ⚠️ Permiso de background no otorgado (solo foreground)",
+        );
+      }
+
+      return this.hasBackgroundPermission;
+    } catch (error: any) {
+      console.error(
+        "[LocationTracking] Error al solicitar permiso de background:",
+        error,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Verifica si el permiso de ubicación en background está otorgado
+   */
+  async hasBackgroundPermissions(): Promise<boolean> {
+    try {
+      if (Platform.OS === "web") {
+        return false;
+      }
+      const { status } = await Location.getBackgroundPermissionsAsync();
+      this.hasBackgroundPermission = status === "granted";
+      return this.hasBackgroundPermission;
+    } catch (error: any) {
+      return false;
+    }
+  }
+
+  /**
+   * Inicia las actualizaciones de ubicación en background
+   * (Location.startLocationUpdatesAsync + foreground service en Android).
+   *
+   * A diferencia de watchPositionAsync, estas updates continúan mientras la app
+   * está en segundo plano (p. ej. con Waze en primer plano). Los eventos llegan
+   * a la task registrada en services/backgroundLocationTask.ts, que nos devuelve
+   * el control vía onBackgroundLocation().
+   */
+  private async startBackgroundUpdates(): Promise<void> {
+    try {
+      if (Platform.OS === "web") {
+        return;
+      }
+
+      if (!this.hasBackgroundPermission) {
+        return;
+      }
+
+      // Guard: no iniciar dos veces (restartTracking puede correr al volver de background)
+      const alreadyStarted = await Location.hasStartedLocationUpdatesAsync(
+        COURIER_BACKGROUND_LOCATION_TASK,
+      ).catch(() => false);
+
+      if (alreadyStarted) {
+        console.log(
+          "[LocationTracking] Background updates ya activas, omitiendo start",
+        );
+        this.isBackgroundUpdatesActive = true;
+        return;
+      }
+
+      await Location.startLocationUpdatesAsync(COURIER_BACKGROUND_LOCATION_TASK, {
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: this.config.updateInterval,
+        distanceInterval: this.config.minDistance,
+        deferredUpdatesInterval: this.config.updateInterval,
+        pausesUpdatesAutomatically: false,
+        showsBackgroundLocationIndicator: true,
+        foregroundService: {
+          notificationTitle: "Tiendas Dominicanas Delivery",
+          notificationBody: "Seguimiento de ubicación activo durante tu viaje",
+          notificationColor: "#E53935",
+          killServiceOnDestroy: false,
+        },
+      });
+
+      this.isBackgroundUpdatesActive = true;
+      console.log("[LocationTracking] ✅ Background location updates iniciadas");
+    } catch (error: any) {
+      console.error(
+        "[LocationTracking] Error al iniciar background updates:",
+        error,
+      );
+      this.isBackgroundUpdatesActive = false;
+    }
+  }
+
+  /**
+   * Detiene las actualizaciones de ubicación en background
+   * (y por ende el foreground service / notificación asociada).
+   */
+  private async stopBackgroundUpdates(): Promise<void> {
+    try {
+      if (Platform.OS === "web") {
+        return;
+      }
+
+      const started = await Location.hasStartedLocationUpdatesAsync(
+        COURIER_BACKGROUND_LOCATION_TASK,
+      ).catch(() => false);
+
+      if (started) {
+        await Location.stopLocationUpdatesAsync(COURIER_BACKGROUND_LOCATION_TASK);
+        console.log(
+          "[LocationTracking] Background location updates detenidas",
+        );
+      }
+
+      this.isBackgroundUpdatesActive = false;
+    } catch (error: any) {
+      console.error(
+        "[LocationTracking] Error al detener background updates:",
+        error,
+      );
+      this.isBackgroundUpdatesActive = false;
+    }
+  }
+
+  /**
+   * Entrada pública para las ubicaciones recibidas desde la background task.
+   * Enruta al mismo pipeline (throttling + envío) que el watchPositionAsync.
+   */
+  onBackgroundLocation(location: Location.LocationObject): void {
+    this.lastGpsCallbackAt = Date.now();
+    // Deduplicación con el fallback timer (mismo criterio que el callback GPS foreground)
+    if (this.fallbackTimerId !== null) {
+      this.stopFallbackTimer();
+      this.startFallbackTimer();
+    }
+    this.handleLocationUpdate(location);
   }
 
   /**
@@ -188,12 +362,11 @@ class CourierLocationTrackingService {
         // console.log('[LocationTracking] ✅ Permisos otorgados');
       }
 
-      // Verificar que el WebSocket esté conectado
-      const isSocketConnected = socketService.isConnected();
-      // console.log('[LocationTracking] WebSocket conectado:', isSocketConnected);
+      // Verificar que el stream de tiempo real esté conectado
+      const isStreamConnected = streamService.isConnected();
 
-      if (!isSocketConnected) {
-        // console.warn('[LocationTracking] ❌ WebSocket no conectado, no se inicia tracking');
+      if (!isStreamConnected) {
+        // console.warn('[LocationTracking] ❌ Stream no conectado, no se inicia tracking');
         return false;
       }
 
@@ -243,6 +416,17 @@ class CourierLocationTrackingService {
       // Verificar permisos periódicamente
       this.startPermissionCheck();
 
+      // Iniciar background updates si el permiso "todo el tiempo" está otorgado
+      // (permite seguir enviando ubicación con Waze u otra app en primer plano)
+      this.hasBackgroundPermission = await this.hasBackgroundPermissions();
+      if (this.hasBackgroundPermission) {
+        await this.startBackgroundUpdates();
+      } else {
+        console.log(
+          "[LocationTracking] ℹ️ Sin permiso de background: tracking solo en foreground",
+        );
+      }
+
       return true;
     } catch (error: any) {
       // console.error('[LocationTracking] ❌ Error al iniciar tracking:', error);
@@ -272,6 +456,9 @@ class CourierLocationTrackingService {
 
       this.stopFallbackTimer();
       this.stopPermissionCheck();
+
+      // Detener background updates (también elimina la notificación del servicio)
+      await this.stopBackgroundUpdates();
 
       this.isTracking = false;
       this.lastSentLocation = null;
@@ -303,6 +490,19 @@ class CourierLocationTrackingService {
       if (this.isTracking && this.fallbackTimerId === null) {
         this.startFallbackTimer();
       }
+
+      // Si el usuario acaba de otorgar el permiso de background (p. ej. desde
+      // ajustes tras el modal), intentar arrancar las background updates ahora.
+      if (this.isTracking && !this.isBackgroundUpdatesActive) {
+        const hasBackground = await this.hasBackgroundPermissions();
+        if (hasBackground) {
+          console.log(
+            "[LocationTracking] Permiso de background recién otorgado, iniciando updates",
+          );
+          await this.startBackgroundUpdates();
+        }
+      }
+
       const timeInBackground = Date.now() - this.lastBackgroundTime;
       if (this.isTracking && timeInBackground > 30000) {
         console.log(
@@ -312,8 +512,12 @@ class CourierLocationTrackingService {
       }
     } else if (state === "background") {
       this.lastBackgroundTime = Date.now();
-      // Pausar fallback timer en background
-      this.stopFallbackTimer();
+      // Pausar fallback timer en background SOLO si no hay background updates
+      // activas (si las hay, la task de background sigue enviando ubicación y
+      // el timer solo introduciría ruido).
+      if (!this.isBackgroundUpdatesActive) {
+        this.stopFallbackTimer();
+      }
     }
   };
 
@@ -324,7 +528,7 @@ class CourierLocationTrackingService {
   private startFallbackTimer(): void {
     this.stopFallbackTimer();
     this.fallbackTimerId = setInterval(async () => {
-      if (!this.isTracking || !socketService.isConnected()) return;
+      if (!this.isTracking || !streamService.isConnected()) return;
       const now = Date.now();
       const timeSinceLastSent = now - this.lastSentTime;
       if (timeSinceLastSent >= this.config.updateInterval) {
@@ -332,8 +536,6 @@ class CourierLocationTrackingService {
         const location = await this.getCurrentLocation();
         if (location) {
           this.sendLocationToBackend(location);
-          this.lastSentLocation = location;
-          this.lastSentTime = now;
         }
       }
     }, this.config.updateInterval);
@@ -385,7 +587,7 @@ class CourierLocationTrackingService {
       // });
 
       // Verificar que el WebSocket esté conectado
-      if (!socketService.isConnected()) {
+      if (!streamService.isConnected()) {
         // console.log('[LocationTracking] ⚠️ WebSocket desconectado, no se envía ubicación');
         return;
       }
@@ -426,55 +628,165 @@ class CourierLocationTrackingService {
       // Enviar ubicación al backend
       // console.log('[LocationTracking] ✅ Pasó throttling, enviando al backend...');
       this.sendLocationToBackend(location);
-
-      // Actualizar estado
-      this.lastSentLocation = location;
-      this.lastSentTime = now;
     } catch (error: any) {
       // console.error('[LocationTracking] ❌ Error al manejar actualización de ubicación:', error);
     }
   }
 
   /**
-   * Envía la ubicación al backend vía WebSocket
+   * Envía la ubicación al backend vía POST /courier-locations.
+   * Si hay una ubicación manual configurada (setManualLocation), siempre se
+   * envía esa en lugar de la del dispositivo.
    */
   private sendLocationToBackend(location: Location.LocationObject) {
     try {
-      // console.log('[LocationTracking] 📤 sendLocationToBackend() llamado');
-
       if (!this.userId) {
-        // console.warn('[LocationTracking] ❌ No se puede enviar ubicación sin userId');
         return;
       }
 
-      const payload: CourierLocation = {
-        courierId: this.userId,
-        lat: location.coords.latitude,
-        lng: location.coords.longitude,
-        accuracy: location.coords.accuracy || 0,
-        timestamp: new Date(location.timestamp).toISOString(),
-        speed: location.coords.speed ?? undefined,
-        heading: location.coords.heading ?? undefined,
-      };
+      const override = this.manualLocationOverride;
 
-      console.log("[LocationTracking] Payload preparado:", payload);
-      console.log(
-        "[LocationTracking] Emitiendo evento courier.location.update...",
-      );
+      const payload: CourierLocation = override
+        ? {
+            courierId: this.userId,
+            lat: override.lat,
+            lng: override.lng,
+            accuracy: override.accuracy,
+            timestamp: new Date().toISOString(),
+            speed: 0,
+            heading: 0,
+          }
+        : {
+            courierId: this.userId,
+            lat: location.coords.latitude,
+            lng: location.coords.longitude,
+            accuracy: location.coords.accuracy || 0,
+            timestamp: new Date(location.timestamp).toISOString(),
+            speed: location.coords.speed ?? undefined,
+            heading: location.coords.heading ?? undefined,
+          };
 
-      const sent = socketService.emit("courier.location.update", payload);
-
-      if (sent) {
-        console.log(
-          // `[LocationTracking] ✅ Ubicación enviada exitosamente: (${payload.lat.toFixed(6)}, ${payload.lng.toFixed(6)}) ` +
-          `accuracy: ${payload.accuracy.toFixed(1)}m`,
-        );
-      } else {
-        // console.warn('[LocationTracking] ⚠️ No se pudo enviar ubicación (emit retornó false)');
-      }
+      // Fire-and-forget: el envío es asíncrono (HTTP) y este método se llama
+      // desde timers y desde la tarea de background.
+      void this.postLocation(payload).then((sent) => {
+        if (!sent) return;
+        console.log(`[LocationTracking] accuracy: ${payload.accuracy.toFixed(1)}m`);
+        this.lastSentLocation = override
+          ? this.buildFakeLocationObject(override)
+          : location;
+        this.lastSentTime = Date.now();
+      });
     } catch (error: any) {
-      // console.error('[LocationTracking] ❌ Error al enviar ubicación:', error);
+      console.error('[LocationTracking] ❌ Error al enviar ubicación:', error);
     }
+  }
+
+  /**
+   * POST /courier-locations — canal de SUBIDA de la ubicación.
+   *
+   * Sustituye al `socketService.emit('courier.location.update')` de la época
+   * de Socket.IO: en SSE solo existe el enlace de bajada, así que la subida
+   * va por REST. El status HTTP es el "ack" (antes `courier.location.ack`).
+   *
+   * Devuelve `false` si no hay token o el servidor rechaza; en ese caso no se
+   * actualiza `lastSentLocation` y el siguiente ciclo reintenta.
+   */
+  private async postLocation(payload: CourierLocation): Promise<boolean> {
+    try {
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        console.warn('[LocationTracking] ⚠️ Sin token, ubicación no enviada');
+        return false;
+      }
+
+      const response = await fetch(getApiUrl(ApiEndpoints.CourierLocations), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-App': 'delivery',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        console.warn(
+          `[LocationTracking] ⚠️ POST /courier-locations devolvió ${response.status}`,
+        );
+        return false;
+      }
+
+      return true;
+    } catch (error: any) {
+      console.warn(
+        '[LocationTracking] ⚠️ Error de red enviando ubicación:',
+        error?.message || error,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Establece una ubicación manual que se usará como ubicación del mensajero
+   * en CADA envío al backend (GPS, fallback, refresh). Envía la ubicación
+   * inmediatamente. Útil para simular ubicaciones sin mover el dispositivo (solo dev).
+   * No afecta getCurrentLocation() ni la optimización de rutas.
+   */
+  setManualLocation(lat: number, lng: number, accuracy: number = 0): boolean {
+    try {
+      if (!this.userId) {
+        console.warn('[LocationTracking] ❌ No se puede establecer ubicación manual sin userId');
+        return false;
+      }
+
+      this.manualLocationOverride = { lat, lng, accuracy };
+
+      if (!streamService.isConnected()) {
+        console.log('[LocationTracking] 📍 Ubicación manual establecida (pendiente de socket):', { lat, lng });
+        return false;
+      }
+
+      console.log(`[LocationTracking] 📍 Ubicación manual establecida: (${lat}, ${lng})`);
+      const location = this.buildFakeLocationObject(this.manualLocationOverride);
+      this.sendLocationToBackend(location);
+      return true;
+    } catch (error: any) {
+      console.error('[LocationTracking] ❌ Error al establecer ubicación manual:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Elimina la ubicación manual y vuelve a enviar la ubicación GPS real
+   */
+  clearManualLocation(): void {
+    this.manualLocationOverride = null;
+    console.log('[LocationTracking] 📍 Ubicación manual eliminada, volviendo a GPS real');
+  }
+
+  /**
+   * Indica si hay una ubicación manual configurada
+   */
+  getManualLocation(): { lat: number; lng: number; accuracy: number } | null {
+    return this.manualLocationOverride;
+  }
+
+  /**
+   * Construye un objeto Location.LocationObject con las coordenadas dadas
+   */
+  private buildFakeLocationObject(override: { lat: number; lng: number; accuracy: number }): Location.LocationObject {
+    return {
+      coords: {
+        latitude: override.lat,
+        longitude: override.lng,
+        accuracy: override.accuracy,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        speed: 0,
+      },
+      timestamp: Date.now(),
+    } as Location.LocationObject;
   }
 
   /**
@@ -509,12 +821,18 @@ class CourierLocationTrackingService {
     lastSentLocation: Location.LocationObject | null;
     lastSentTime: number;
     hasUserId: boolean;
+    manualLocation: { lat: number; lng: number; accuracy: number } | null;
+    hasBackgroundPermission: boolean;
+    isBackgroundUpdatesActive: boolean;
   } {
     return {
       isTracking: this.isTracking,
       lastSentLocation: this.lastSentLocation,
       lastSentTime: this.lastSentTime,
       hasUserId: this.userId !== null,
+      manualLocation: this.manualLocationOverride,
+      hasBackgroundPermission: this.hasBackgroundPermission,
+      isBackgroundUpdatesActive: this.isBackgroundUpdatesActive,
     };
   }
 

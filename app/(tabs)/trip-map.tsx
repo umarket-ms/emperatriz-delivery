@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useReducer } from "react";
-import { View, Text, ActivityIndicator, Pressable, StyleSheet } from "react-native";
+import { View, Text, ActivityIndicator, Pressable, StyleSheet, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { CustomColors } from "@/constants/CustomColors";
@@ -15,7 +15,7 @@ import { useTripDerivedData } from "@/components/trip-map-screen/hooks/useTripDe
 import { useTripModals } from "@/components/trip-map-screen/hooks/useTripModals";
 import { useGroupProgressHandlers, progressionReducer, type ProgressionState } from "@/components/trip-map-screen/hooks/useGroupProgressHandlers";
 import { useMapCommunication } from "@/components/trip-map-screen/hooks/useMapCommunication";
-import { useSocketRouteUpdates } from "@/components/trip-map-screen/hooks/useSocketRouteUpdates";
+import { useRealtimeRouteUpdates } from "@/components/trip-map-screen/hooks/useRealtimeRouteUpdates";
 import { useRouteDeviation } from "@/components/trip-map-screen/hooks/useRouteDeviation";
 import { useGpsTracking } from "@/components/trip-map-screen/hooks/useGpsTracking";
 import { useSimulation } from "@/components/trip-map-screen/hooks/useSimulation";
@@ -23,10 +23,13 @@ import { useTripRouteSync } from "@/components/trip-map-screen/hooks/useTripRout
 import TripMapView from "@/components/trip-map-screen/components/TripMapView";
 import MapControls from "@/components/trip-map-screen/components/MapControls";
 import SimulationControls from "@/components/trip-map-screen/components/SimulationControls";
+import ManualLocationControls from "@/components/trip-map-screen/components/ManualLocationControls";
 import CenterLocationButton from "@/components/trip-map-screen/components/CenterLocationButton";
-import WebSocketStatusIndicator from "@/components/trip-map-screen/components/WebSocketStatusIndicator";
+import RealtimeStatusIndicator from "@/components/trip-map-screen/components/RealtimeStatusIndicator";
 import TripMapLoadingState from "@/components/trip-map-screen/components/TripMapLoadingState";
 import TripMapErrorState from "@/components/trip-map-screen/components/TripMapErrorState";
+import ScheduledDeliveriesPanel from "@/components/trip-map-screen/components/ScheduledDeliveriesPanel";
+import { useScheduledDeliveries } from "@/components/trip-map-screen/hooks/useScheduledDeliveries";
 import ElementsBottomSheet from "@/components/ElementsBottomSheet";
 import type { ElementsBottomSheetMethods } from "@/components/ElementsBottomSheet";
 import { Ionicons } from "@expo/vector-icons";
@@ -44,6 +47,9 @@ export default function TripMapScreen() {
   } = useRouteContext();
 
   const { allDeliveries } = useDelivery();
+
+  // ===== Entregas programadas (hora pactada con el cliente) =====
+  const { scheduledDeliveries } = useScheduledDeliveries(allDeliveries);
 
   // ===== Bottom Sheet =====
   const bottomSheetRef = useRef<ElementsBottomSheetMethods>(null);
@@ -122,6 +128,22 @@ export default function TripMapScreen() {
   const [remainingDistance, setRemainingDistance] = useState<number>(0);
   const [remainingDuration, setRemainingDuration] = useState<number>(0);
 
+  // ===== Refresh ruta optimizada (red de seguridad contra errores) =====
+  const handleRefreshRoute = useCallback(() => {
+    if (allDeliveries && allDeliveries.length > 0 && currentPosition) {
+      startRoutes(allDeliveries, currentPosition).catch((err: any) => {
+        const message = err?.message ?? "Error desconocido al actualizar la ruta";
+        console.log("[TripMapScreen] startRoutes failed:", message);
+        Alert.alert("No se pudo actualizar la ruta", message);
+      });
+    } else if (currentPosition) {
+      recalculateRoutesViaBackend(currentPosition).catch((err: any) => {
+        console.log("[TripMapScreen] recalculateRoutesViaBackend failed:", err);
+        Alert.alert("No se pudo actualizar la ruta", "Intenta de nuevo en unos segundos.");
+      });
+    }
+  }, [allDeliveries, currentPosition, startRoutes, recalculateRoutesViaBackend]);
+
   // ----- Refs for stale closures -----
   const recalculateRef = useRef(recalculateRoutesViaBackend);
   useEffect(() => {
@@ -157,7 +179,7 @@ export default function TripMapScreen() {
     handleMarkerClickByDeliveryId,
   );
 
-  useSocketRouteUpdates(recalculateRef);
+  useRealtimeRouteUpdates(recalculateRef);
 
   const { detectRouteDeviation, recalculateRouteOnDeviation } = useRouteDeviation(recalculateRef);
 
@@ -282,7 +304,7 @@ export default function TripMapScreen() {
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.container}>
           <TripMapLoadingState />
-          <WebSocketStatusIndicator />
+          <RealtimeStatusIndicator />
           <ElementsBottomSheet ref={bottomSheetRef} />
         </View>
       </SafeAreaView>
@@ -294,7 +316,7 @@ export default function TripMapScreen() {
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.container}>
           <TripMapErrorState message={tripError} />
-          <WebSocketStatusIndicator />
+          <RealtimeStatusIndicator />
           <ElementsBottomSheet ref={bottomSheetRef} />
           {/* FAB for Elements sheet */}
           <Pressable style={fabStyles.fab} onPress={handleOpenSheet}>
@@ -312,6 +334,8 @@ export default function TripMapScreen() {
         <View style={styles.container}>
           <TripMapView webViewRef={webViewRef} onMessage={handleWebViewMessage} />
 
+          <ScheduledDeliveriesPanel scheduledDeliveries={scheduledDeliveries} />
+
           <CenterLocationButton
             currentPosition={currentPosition}
             onCenter={() => {
@@ -325,21 +349,17 @@ export default function TripMapScreen() {
             }}
           />
 
-          <WebSocketStatusIndicator />
+          <RealtimeStatusIndicator />
 
           <Pressable
             style={styles.refreshAssignmentsButton}
-            onPress={() => {
-              if (allDeliveries && allDeliveries.length > 0 && currentPosition) {
-                startRoutes(allDeliveries, currentPosition);
-              } else if (currentPosition) {
-                recalculateRoutesViaBackend(currentPosition);
-              }
-            }}
+            onPress={handleRefreshRoute}
             disabled={!currentPosition || tripLoading}
           >
             <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>
           </Pressable>
+
+          {__DEV__ && <ManualLocationControls sendToMap={sendToMap} />}
 
           <ElementsBottomSheet ref={bottomSheetRef} />
           <Pressable style={fabStyles.fab} onPress={handleOpenSheet}>
@@ -371,6 +391,8 @@ export default function TripMapScreen() {
       <View style={styles.container}>
         <TripMapView webViewRef={webViewRef} onMessage={handleWebViewMessage} />
 
+        <ScheduledDeliveriesPanel scheduledDeliveries={scheduledDeliveries} />
+
         <CenterLocationButton
           currentPosition={currentPosition}
           onCenter={() => {
@@ -391,17 +413,13 @@ export default function TripMapScreen() {
           />
         )}
 
-        <WebSocketStatusIndicator />
+        {__DEV__ && <ManualLocationControls sendToMap={sendToMap} />}
+
+        <RealtimeStatusIndicator />
 
         <Pressable
           style={styles.refreshAssignmentsButton}
-          onPress={() => {
-            if (allDeliveries && allDeliveries.length > 0 && currentPosition) {
-              startRoutes(allDeliveries, currentPosition);
-            } else if (currentPosition) {
-              recalculateRoutesViaBackend(currentPosition);
-            }
-          }}
+          onPress={handleRefreshRoute}
           disabled={!currentPosition || tripLoading}
         >
           <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>

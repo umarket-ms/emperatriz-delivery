@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { IUserEntity, IRolesAllowedEntity, DeliveryPersonEntity } from '@/interfaces/auth';
 import { authService } from '@/services/authService';
-import { socketService } from '@/services/websocketService';
+import { streamService } from '@/services/eventStreamService';
 import { courierLocationTracking } from '@/services/courierLocationService';
 import { setAuthFailureHandler } from '@/services/api';
 import { getRefreshInProgressFlag, refreshAccessToken } from '@/services/tokenManager';
@@ -81,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUser(retryResult.user ?? null);
               setCarrier(retryResult.carrier ?? null);
               setRoles(retryResult.user?.userRoles?.map((r: any) => r.title) ?? []);
-              await socketService.connect();
+              await streamService.connect();
               return;
             }
             console.log('[AuthContext] Retry from in-progress flag failed, continuing normal flow...');
@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setRoles(refreshResult.data.roles || []);
 
             // Conectar WebSocket al inicio si el usuario ya estaba autenticado
-            await socketService.connect();
+            await streamService.connect();
           } else {
             // Fallback: intentar fetchWhoami con el access_token actual
             console.log('[AuthContext] refresh falló, intentando fetchWhoami como fallback');
@@ -108,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUser(whoami.data.user);
               setCarrier(whoami.data.carrier ?? null);
               setRoles(whoami.data.roles || []);
-              await socketService.connect();
+              await streamService.connect();
             } else {
               // Check if the refresh token still exists — if so, the failure
               // was likely a network error, NOT an invalid session.
@@ -120,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 // Don't set isAuthenticated without carrier data — let the user retry
                 console.log('[AuthContext] Token existe pero no se pudieron obtener datos del servidor, manteniendo sesión...');
                 // Try to connect WebSocket anyway — it may succeed
-                socketService.connect().catch(() => {});
+                streamService.connect().catch(() => {});
               } else {
                 // Token genuinely doesn't exist — must logout
                 console.log('[AuthContext] Refresh token no existe, cerrando sesión');
@@ -190,13 +190,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       // Registrar el listener
-      socketService.onConnectionChange(handleConnectionChange);
+      streamService.onConnectionChange(handleConnectionChange);
       console.log('[AuthContext] Listener de conexión registrado');
 
       // Cleanup
       return () => {
         console.log('[AuthContext] Limpiando listeners y deteniendo tracking');
-        socketService.offConnectionChange(handleConnectionChange);
+        streamService.offConnectionChange(handleConnectionChange);
         courierLocationTracking.stopTracking();
       };
     } else {
@@ -243,9 +243,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await AsyncStorage.setItem(SESSION_TIMESTAMP_KEY, String(Date.now()));
 
       // Conectar WebSocket inmediatamente después del login
-      console.log('[AuthContext] Llamando socketService.connect() desde login()...');
-      const connected = await socketService.connect();
-      console.log('[AuthContext] socketService.connect() retornó:', connected);
+      console.log('[AuthContext] Llamando streamService.connect() desde login()...');
+      const connected = await streamService.connect();
+      console.log('[AuthContext] streamService.connect() retornó:', connected);
 
       return { success: true };
     } catch (error:any) {
@@ -259,7 +259,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const logout = useCallback(async () => {
-    socketService.disconnect();
+    streamService.disconnect();
     await authService.logout();
     setIsAuthenticated(false);
     setUser(null);
@@ -296,7 +296,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           duration: 4000,
         });
       }
-      socketService.disconnect();
+      streamService.disconnect();
       await authService.logout();
       setIsAuthenticated(false);
       setUser(null);

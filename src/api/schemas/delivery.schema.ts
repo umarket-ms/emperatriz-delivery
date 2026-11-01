@@ -18,6 +18,7 @@ const DeliveryAssignmentSchema = z.object({
     deliveryAddress: z.string(),
     isGroup: z.boolean(),
     deliveryStatus: DeliveryStatusEntitySchema,
+    scheduledAt: z.string().nullable().optional(),
 }).loose();
 
 const DeliveryAssignmentArraySchema = z.array(DeliveryAssignmentSchema);
@@ -45,6 +46,7 @@ const RouteWaypointSchema = z.object({
     estimatedArrival: z.string().optional(),
     contact: z.string(),
     phone: z.string(),
+    scheduledAt: z.string().nullable().optional(),
 }).loose();
 
 const OptimizedRouteSchema = z.object({

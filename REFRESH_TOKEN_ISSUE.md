@@ -1,5 +1,21 @@
 # Problema: Refresh Token entre App Delivery (React Native/Expo) y Backend (NestJS)
 
+> **⚠️ Actualización (migración WebSocket → SSE).** Este documento describe la
+> época en la que el refresh se hacía primero por Socket.IO
+> (`emitWithAck('token.refresh')`) y el tiempo real iba por WebSocket.
+> **Eso ya no existe**:
+>
+> - El tiempo real de bajada es **SSE** (`GET /api/v1/events` con
+>   `Authorization: Bearer` → `services/eventStreamService.ts`).
+> - La subida de ubicación es **`POST /courier-locations`**
+>   → `services/courierLocationService.ts`.
+> - `refreshAccessToken()` en `services/tokenManager.ts` es **exclusivamente
+>   HTTP** (`POST /auth/refresh-token`); se eliminó `refreshViaWebSocket`.
+>
+> Las reglas de limpieza de tokens y la ventana de gracia descritas aquí
+> siguen vigentes. El resto de secciones relacionadas con el "refresh vía
+> WebSocket" deben leerse como histórico.
+
 ## Contexto
 
 Tenemos una **app móvil de delivery** (React Native + Expo SDK 54) que se comunica con un **backend NestJS** mediante HTTP y WebSocket (Socket.IO). Los conductores (mensajeros) usan la app todo el día para recibir entregas, actualizar estados, y enviar su ubicación GPS.

@@ -71,7 +71,7 @@ describe('AuthStore', () => {
       firstname: 'Test',
       lastname: 'User',
     };
-    authStore.setUser(mockUser);
+    authStore.setUser(mockUser as any);
     expect(authStore.getUser()).toEqual(mockUser);
   });
 
@@ -105,7 +105,7 @@ describe('AuthStore', () => {
       { id: 1, title: 'Admin' },
       { id: 2, title: 'Driver' },
     ];
-    authStore.setRoles(mockRoles);
+    authStore.setRoles(mockRoles as any);
     expect(authStore.getRoles()).toEqual(mockRoles);
   });
 

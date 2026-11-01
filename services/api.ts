@@ -42,14 +42,27 @@ const getApiBaseUrl = () => {
     return `${baseUrl}/api/v1`;
 };
 
-const getProductImageUrl = () => {
-    const baseUrl = getApiBaseUrl();  
-    return `${baseUrl}/files/product/`;
-};
-
 // URL base para todas las peticiones
 export const API_URL = getApiBaseUrl();
-export const PRODUCT_IMAGE_URL = getProductImageUrl();
+
+/**
+ * Resuelve la URL de un archivo/imagen de producto.
+ *
+ * - Si el valor ya viene como URL absoluta (p. ej. la que resuelve el backend
+ *   vía API_PUBLIC_PREFIX → `https://api.../api/v1/files/proxy?key=...`),
+ *   se usa tal cual (evita el doble prefijo).
+ * - Si viene como key S3 (`files_key`, p. ej. `products/2/xxx.png`), se sirve
+ *   a través del endpoint público `files/proxy` (no requiere auth ni el
+ *   query `enterprise=` que exige el endpoint legacy `files/product/:name`).
+ *
+ * @param value - URL absoluta o key S3 (puede ser null/undefined)
+ * @returns URL completa lista para `<Image source={{ uri }}>` o null
+ */
+export const buildFileUrl = (value?: string | null): string | null => {
+    if (!value) return null;
+    if (/^https?:\/\//.test(value)) return value;
+    return `${API_URL}/files/proxy?key=${encodeURIComponent(value)}`;
+};
 
 /**
  * Construye la URL completa de un endpoint de la API.
@@ -454,33 +467,51 @@ export const api = {
 };
 
 // Función para verificar la conectividad con el servidor
-// Nota: No hace solicitud HTTP real, solo verifica que la URL base esté configurada
-// La conectividad real se verifica a través del WebSocket
-export const checkApiConnectivity = async () => {
-    try {
-        // Simplemente verificar que tenemos una URL válida
-        const baseUrl = getBaseUrl();
-        
-        if (!baseUrl || baseUrl === '') {
-            return {
-                success: false,
-                error: 'URL del servidor no configurada'
-            };
-        }
+// Hace una petición real a un endpoint liviano (app-version/delivery).
+// Cualquier respuesta HTTP significa que el servidor está reachable.
+// Solo errores de red o timeout significan desconexión.
+export const checkApiConnectivity = async (timeoutMs: number = 5000) => {
+    const baseUrl = getBaseUrl();
 
-        // Retornar éxito si la URL está configurada
-        // La verificación real de conectividad se hace al intentar login o conectar WebSocket
-        return {
-            success: true,
-            status: 200,
-            message: 'Configuración de servidor correcta'
-        };
-    } catch (error:any) {
-        console.log('API connectivity check error:', error);
+    if (!baseUrl || baseUrl === '') {
         return {
             success: false,
-            error: error instanceof Error ? error.message : 'Error al verificar la conectividad'
+            error: 'URL del servidor no configurada'
         };
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const url = getApiUrl(ApiEndpoints.AppVersionDelivery);
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: defaultOptions.headers,
+            signal: controller.signal,
+        });
+
+        // Cualquier respuesta HTTP (incluso 4xx/5xx) indica que el servidor está activo
+        return {
+            success: true,
+            status: response.status,
+            message: 'Servidor reachable'
+        };
+    } catch (error: any) {
+        const isTimeout = error?.name === 'AbortError' || controller.signal.aborted;
+        const errorMessage = isTimeout
+            ? `Timeout tras ${timeoutMs}ms`
+            : error instanceof Error
+                ? error.message
+                : 'Error al verificar la conectividad';
+
+        console.log('API connectivity check error:', errorMessage);
+        return {
+            success: false,
+            error: errorMessage
+        };
+    } finally {
+        clearTimeout(timeoutId);
     }
 };
 

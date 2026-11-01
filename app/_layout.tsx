@@ -1,11 +1,14 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+import { DarkTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { Stack, router, useSegments, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
 import 'react-native-reanimated';
 import '../src/lib/sentry';
+// Import con efecto side-effect: registra la background location task de
+// expo-task-manager a nivel de scope superior (requisito de la API). No quitar.
+import '@/services/backgroundLocationTask';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
@@ -37,15 +40,16 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ActiveDeliveryProvider } from '@/context/ActiveDeliveryContext';
 import { DeliveryProvider } from '@/context/DeliveryContext';
 import { useDelivery } from '@/context/DeliveryContext';
+import { AvailableDeliveryProvider } from '@/context/AvailableDeliveryContext';
 import { useColorScheme } from '@/components/useColorScheme';
 import { CustomColors } from '@/constants/CustomColors';
 import LoadingScreen from '@/components/LoadingScreen';
 import { NotificationHandler } from '@/components/NotificationHandler';
+import BackgroundLocationPermissionModal from '@/components/BackgroundLocationPermissionModal';
 import * as NavigationBar from 'expo-navigation-bar';
 import { api, checkApiConnectivity } from '@/services/api';
 import { setupDeepLinkListeners } from '@/utils/deepLinkHandler';
 import { useBatteryOptimizationCheck } from '@/core/hooks/useBatteryOptimizationCheck';
-import { useFCMPushNotifications } from '@/core/hooks/useFCMPushNotifications';
 import { useOTAUpdates } from '@/core/hooks/useOTAUpdates';
 import ForceUpdateScreen from '@/components/ForceUpdateScreen';
 import { getRecoveryState } from '@/utils/passwordRecovery';
@@ -178,8 +182,6 @@ function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
   const lastOnline = useRef<boolean | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useFCMPushNotifications(user?.id);
-
   useEffect(() => {
     if (isLoading || !navigationState?.key) return;
 
@@ -248,6 +250,21 @@ function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Muestra el modal de consentimiento de ubicación en background cuando el
+ * usuario está autenticado y verificado (listo para trabajar). El modal
+ * internamente decide si corresponde mostrarlo (solo Android, sin permiso
+ * otorgado, y con cooldown de 90 días).
+ */
+function BackgroundLocationPermissionGate() {
+  const { isAuthenticated, user } = useAuth();
+
+  const ready =
+    isAuthenticated && !!user?.isEmailVerified && !user?.mustChangePassword;
+
+  return <BackgroundLocationPermissionModal trigger={ready} />;
+}
+
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
@@ -271,6 +288,7 @@ function RootLayoutNav() {
         <AuthProvider>
           <ActiveDeliveryProvider>
             <DeliveryProvider>
+              <AvailableDeliveryProvider>
                 <ThemeProvider value={navCustomTheme}>
                 <ProtectedRouteGuard>
                   <Stack screenOptions={{
@@ -286,8 +304,10 @@ function RootLayoutNav() {
                   </Stack>
 
                   <NotificationHandler />
+                  <BackgroundLocationPermissionGate />
                 </ProtectedRouteGuard>
-              </ThemeProvider>
+                </ThemeProvider>
+              </AvailableDeliveryProvider>
             </DeliveryProvider>
           </ActiveDeliveryProvider>
         </AuthProvider>

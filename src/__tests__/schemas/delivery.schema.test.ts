@@ -78,6 +78,24 @@ describe('Delivery Schemas', () => {
       });
       expect(result.success).toBe(true);
     });
+
+    it('should accept scheduledAt as ISO string', () => {
+      const scheduled = {
+        ...validAssignment,
+        scheduledAt: '2026-10-08T15:30:00.000Z',
+      };
+      const result = OkDeliverySchema.safeParse({ ok: true, value: scheduled });
+      expect(result.success).toBe(true);
+    });
+
+    it('should accept scheduledAt as null', () => {
+      const notScheduled = { ...validAssignment, scheduledAt: null };
+      const result = OkDeliverySchema.safeParse({
+        ok: true,
+        value: notScheduled,
+      });
+      expect(result.success).toBe(true);
+    });
   });
 
   describe('OkDeliveryArraySchema', () => {
@@ -171,6 +189,32 @@ describe('Delivery Schemas', () => {
         estimatedArrival: '2024-01-15T10:00:00Z',
       };
       const route = { ...validRoute, waypoints: [waypointWithETA] };
+      const result = OkOptimizedRouteSchema.safeParse({
+        ok: true,
+        value: route,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should validate waypoint with optional scheduledAt', () => {
+      const waypointWithSchedule = {
+        ...validWaypoint,
+        scheduledAt: '2026-10-08T15:30:00.000Z',
+      };
+      const route = { ...validRoute, waypoints: [waypointWithSchedule] };
+      const result = OkOptimizedRouteSchema.safeParse({
+        ok: true,
+        value: route,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should validate waypoint with scheduledAt null', () => {
+      const waypointWithNullSchedule = { ...validWaypoint, scheduledAt: null };
+      const route = {
+        ...validRoute,
+        waypoints: [waypointWithNullSchedule],
+      };
       const result = OkOptimizedRouteSchema.safeParse({
         ok: true,
         value: route,

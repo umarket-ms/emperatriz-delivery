@@ -36,6 +36,12 @@ export enum ApiEndpoints {
   AuthResetPassword = 'auth/reset-password',
 
   // ==========================================================================
+  // Tiempo real (SSE) y ubicación del mensajero
+  // ==========================================================================
+  Events = 'events',
+  CourierLocations = 'courier-locations',
+
+  // ==========================================================================
   // App Version
   // ==========================================================================
   AppVersion = 'app-version',
@@ -54,6 +60,9 @@ export enum ApiEndpoints {
   DeliveryAssignmentsDriverStats = 'delivery-assignments/driver/stats',
   DeliveryAssignmentsDriverTopRoute = 'delivery-assignments/driver/top-route',
   DeliveryAssignmentsDriverRecentDeliveries = 'delivery-assignments/driver/recent-deliveries',
+  DeliveryAssignmentsDriverAvailable = 'delivery-assignments/driver/available',
+  DeliveryAssignmentsDriverClaim = 'delivery-assignments/driver/claim/{id}',
+  DeliveryAssignmentsDriverClaimGroup = 'delivery-assignments/driver/claim',
 
   // ==========================================================================
   // Delivery Status
@@ -88,8 +97,4 @@ export enum ApiEndpoints {
   // ==========================================================================
   CxpCreditNotesForInvoice = 'cxp-credit-notes/for-invoice/{invoiceId}',
 
-  // ==========================================================================
-  // Notifications
-  // ==========================================================================
-  NotificationsToken = 'notifications/token',
-}
+  }

@@ -12,10 +12,11 @@ import {
 import { Image } from "expo-image";
 import { DeliveryItemAdapter } from "@/interfaces/delivery/deliveryAdapters";
 import { AssignmentType } from "@/utils/enum";
+import { IDeliveryStatus } from "@/interfaces/delivery/deliveryStatus";
 import { CustomColors } from "@/constants/CustomColors";
 import { Capitalize } from "@/utils/capitalize";
 import { openWhatsAppMessage } from "@/utils/whatsapp";
-import { PRODUCT_IMAGE_URL } from "@/services/api";
+import { buildFileUrl } from "@/services/api";
 
 export interface AssignmentDetailsModalProps {
   visible: boolean;
@@ -41,6 +42,32 @@ export default function AssignmentDetailsModal({
     Linking.openURL(`tel:${assignment.phone}`);
   };
 
+  const handleNavigate = async () => {
+    const isDelivery = assignment.type === AssignmentType.DELIVERY;
+    const lat = isDelivery ? assignment.destinyNominatimLat : assignment.originNominatimLat;
+    const lng = isDelivery ? assignment.destinyNominatimLng : assignment.originNominatimLng;
+    if (lat == null || lng == null) {
+      Alert.alert("Navegación", "No se encontraron coordenadas para esta entrega.");
+      return;
+    }
+
+    const wazeUrl = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+    const googleMapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+
+    try {
+      await Linking.openURL(wazeUrl);
+    } catch {
+      try {
+        await Linking.openURL(googleMapsUrl);
+      } catch {
+        Alert.alert(
+          "Navegación",
+          `No se pudo abrir una app de mapas.\n\nCoordenadas: ${lat},${lng}\n${wazeUrl}`
+        );
+      }
+    }
+  };
+
   // For PICKUP assignments, get product details from the DELIVERY assignment of the same shipment
   const getDetailsWithImages = () => {
     if (assignment.deliveryAssignmentDetails && 
@@ -62,6 +89,7 @@ export default function AssignmentDetailsModal({
   const detailsWithImages = getDetailsWithImages();
   const fullAddress = assignment.deliveryAddress || "";
   const siteType = assignment.type === AssignmentType.PICKUP ? 'RECOGIDA' : 'ENTREGA';
+  const canNavigate = assignment.deliveryStatus?.title === IDeliveryStatus.IN_PROGRESS;
       
   return (
     <Modal
@@ -108,7 +136,24 @@ export default function AssignmentDetailsModal({
               >
                 <Text style={styles.actionText}>Llamar</Text>
               </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  { opacity: !canNavigate ? 0.45 : pressed ? 0.7 : 1 },
+                  styles.actionButton,
+                  styles.navigateButton,
+                ]}
+                onPress={canNavigate ? handleNavigate : undefined}
+                disabled={!canNavigate}
+              >
+                <Text style={styles.actionText}>Navegar</Text>
+              </Pressable>
             </View>
+
+            {!canNavigate && (
+              <Text style={styles.navigateHint}>
+                Inicia esta entrega para poder navegar
+              </Text>
+            )}
 
             {detailsWithImages &&
               detailsWithImages.filter(
@@ -124,9 +169,7 @@ export default function AssignmentDetailsModal({
                     {detailsWithImages
                       .filter((detail) => detail.type === 'PRODUCT')
                       .map((detail, idx) => {
-                        const imageUrl = detail.imageUrl
-                          ? `${PRODUCT_IMAGE_URL}${detail.imageUrl}`
-                          : null;
+                        const imageUrl = buildFileUrl(detail.imageUrl);
                         return (
                           <View key={detail.id || idx} style={styles.productItem}>
                             {imageUrl ? (
@@ -165,9 +208,11 @@ const styles = StyleSheet.create({
     backgroundColor: CustomColors.overlay,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 80,
   },
   container: {
-    width: "90%",
+    width: "100%",
     backgroundColor: CustomColors.backgroundDark,
     borderRadius: 18,
     padding: 16,
@@ -238,9 +283,19 @@ const styles = StyleSheet.create({
   callButton: {
     backgroundColor: CustomColors.primary,
   },
+  navigateButton: {
+    backgroundColor: CustomColors.info,
+  },
   actionText: {
     color: CustomColors.white,
     fontWeight: "700",
+  },
+  navigateHint: {
+    color: CustomColors.warning,
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: -4,
   },
   productsSection: {
     borderTopWidth: 1,

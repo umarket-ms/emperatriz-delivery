@@ -15,31 +15,24 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "tiendasdominicanasdelivery",
-    
-    "newArchEnabled": true,
     "extra": {
       "apiUrl": {
-        "EXPO_PUBLIC_API_URL_PROD": "https://api.tiendasdominicanas.com.do",
+        "EXPO_PUBLIC_API_URL_PROD": "https://api.mundeko.com",
         "EXPO_PUBLIC_API_URL_DEV_IOS": "http://localhost:80",
         "EXPO_PUBLIC_API_URL_DEV_ANDROID": "http://192.168.100.41:5500",
         "EXPO_PUBLIC_API_URL_DEFAULT": "http://192.168.100.41:5500"
       },
       "socketUrl": {
         "development": "http://192.168.100.41:5500",
-        "production": "https://api.tiendasdominicanas.com.do"
+        "production": "https://api.mundeko.com"
       },
-      "SENTRY_DSN": "https://576eb575e45146d3ac2395192d8cf6b5@glitchtip.tiendasdominicanas.com.do/6",
+      "SENTRY_DSN": "https://576eb575e45146d3ac2395192d8cf6b5@glitchtip.mundeko.com/6",
       "router": {
         "root": "./app"
       },
       "eas": {
         "projectId": "d9114a6d-b3be-4b76-b734-ce5aefdc980c"
       }
-    },
-    "splash": {
-      "image": "./assets/images/screen.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1A1125"
     },
     "ios": {
       "supportsTablet": true,
@@ -49,17 +42,17 @@
       }
     },
     "android": {
-      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1A1125"
       },
-      "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.CAMERA"
       ],
       "package": "com.valentinrod.tiendasdominicanas.mensajeria",
       "intentFilters": [
@@ -99,7 +92,11 @@
           "category": [
             "DEFAULT"
           ],
-          "mimeType": "text/plain"
+          "data": [
+            {
+              "mimeType": "text/plain"
+            }
+          ]
         }
       ]
     },
@@ -115,25 +112,45 @@
           "root": "./app"
         }
       ],
-      "@react-native-firebase/app",
-      "@react-native-firebase/messaging",
+      [
+        "expo-location",
+        {
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "locationWhenInUsePermission": "Esta aplicación necesita acceso a tu ubicación para mostrar rutas de entrega."
+        }
+      ],
       "expo-audio",
       "expo-asset",
       [
         "expo-build-properties",
         {
           "ios": {
-            "useFrameworks": "static",
-            "forceStaticLinking": ["RNFBApp", "RNFBMessaging"]
+            "useFrameworks": "static"
           }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/screen.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#1A1125"
         }
       ],
       [
         "@sentry/react-native/expo",
         {
-          "organization": "valentinrod",
+          "organization": "tiendas-dominicanas",
           "project": "delivery",
-          "url": "https://glitchtip.tiendasdominicanas.com.do"
+          "url": "https://glitchtip.mundeko.com"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La aplicación necesita acceso a tu galería para adjuntar evidencia de entrega.",
+          "cameraPermission": "La aplicación necesita acceso a tu cámara para tomar fotos de evidencia de entrega."
         }
       ]
     ],

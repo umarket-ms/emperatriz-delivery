@@ -10,6 +10,21 @@ import {
   adaptDeliveriesToAdapter,
   DeliveryItemAdapter,
 } from "@/interfaces/delivery/deliveryAdapters";
+import {
+  AvailableDeliveryItem,
+  ClaimDeliveryResponse,
+} from "@/interfaces/delivery/available";
+import { File } from "expo-file-system";
+
+/**
+ * Convierte un uri local en una parte válida de FormData para expo/fetch (SDK 54+).
+ * El formato React Native `{ uri, type, name }` ya no es soportado por el
+ * serializador de FormData de expo/fetch; se requiere un objeto con `bytes()`.
+ */
+const toImageFormDataPart = (uri: string, name: string, type = "image/jpeg") => {
+  const file = new File(uri);
+  return { bytes: () => file.bytes(), name, type };
+};
 
 export const getDeliveries = async (
   filters?: Partial<IDeliveryAssignmentEntity>,
@@ -101,11 +116,13 @@ const updateDeliveryStatusWithImages = (
     formData.append("gpsReadings", JSON.stringify(gpsReadings));
 
   imageUris.forEach((imageUri, index) => {
-    formData.append("images", {
-      uri: imageUri,
-      type: "image/jpeg",
-      name: `delivery_evidence_${id}_${index}_${Date.now()}.jpg`,
-    } as any);
+    formData.append(
+      "images",
+      toImageFormDataPart(
+        imageUri,
+        `delivery_evidence_${id}_${index}_${Date.now()}.jpg`,
+      ) as any,
+    );
   });
 
   return apiAction.postFormData<IDeliveryAssignmentEntity>(
@@ -148,11 +165,13 @@ export const updateDeliveryStatusUnified = (
     if (scheduledAt) formData.append("scheduledAt", scheduledAt);
 
     imageUris.forEach((imageUri, index) => {
-      formData.append("images", {
-        uri: imageUri,
-        type: "image/jpeg",
-        name: `delivery_evidence_${id}_${index}_${Date.now()}.jpg`,
-      } as any);
+      formData.append(
+        "images",
+        toImageFormDataPart(
+          imageUri,
+          `delivery_evidence_${id}_${index}_${Date.now()}.jpg`,
+        ) as any,
+      );
     });
 
     return apiAction.patchFormData<IDeliveryAssignmentEntity>(
@@ -218,11 +237,13 @@ export const updateDeliveryStatusBatch = (
     if (scheduledAt) formData.append("scheduledAt", scheduledAt);
 
     imageUris.forEach((imageUri, index) => {
-      formData.append("images", {
-        uri: imageUri,
-        type: "image/jpeg",
-        name: `batch_evidence_${index}_${Date.now()}.jpg`,
-      } as any);
+      formData.append(
+        "images",
+        toImageFormDataPart(
+          imageUri,
+          `batch_evidence_${index}_${Date.now()}.jpg`,
+        ) as any,
+      );
     });
 
     return apiAction.patchFormData<IDeliveryAssignmentEntity[]>(
@@ -254,4 +275,36 @@ export const getOptimizedRoute = (
   apiAction.post<any>(
     `${ApiEndpoints.DeliveryAssignmentsOptimizedRoute}`.replace('{courierId}', String(courierId)),
     { currentLocation },
+  );
+
+// ==========================================================================
+// Self-assignment (despacho híbrido)
+// ==========================================================================
+
+export const getAvailableDeliveries = (): Promise<AvailableDeliveryItem[]> =>
+  apiAction.get<AvailableDeliveryItem[]>(
+    ApiEndpoints.DeliveryAssignmentsDriverAvailable,
+  );
+
+export const claimDelivery = (
+  id: number,
+): Promise<ClaimDeliveryResponse> =>
+  apiAction.post<ClaimDeliveryResponse>(
+    `${ApiEndpoints.DeliveryAssignmentsDriverClaim}`.replace('{id}', String(id)),
+  );
+
+/** Reclama en lote el grupo completo de viajes de un envío (shipmentId). */
+export const claimDeliveries = (
+  assignmentIds: number[],
+): Promise<ClaimDeliveryResponse> =>
+  apiAction.post<ClaimDeliveryResponse>(
+    ApiEndpoints.DeliveryAssignmentsDriverClaimGroup,
+    { assignmentIds },
+  );
+
+export const releaseDelivery = (
+  id: number,
+): Promise<{ message: string }> =>
+  apiAction.delete<{ message: string }>(
+    `${ApiEndpoints.DeliveryAssignmentsDriverClaim}`.replace('{id}', String(id)),
   );

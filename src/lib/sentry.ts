@@ -7,6 +7,6 @@ if (__DEV__ === false && sentryDsn) {
     Sentry.init({
         dsn: sentryDsn,
         tracesSampleRate: 0.01,
-        autoSessionTracking: false,
+        enableAutoSessionTracking: false,
     });
 }

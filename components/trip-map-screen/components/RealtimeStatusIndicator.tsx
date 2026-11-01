@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { socketService } from "@/services/websocketService";
+import { streamService } from "@/services/eventStreamService";
 import { CustomColors } from "@/constants/CustomColors";
 
-const WebSocketStatusIndicator: React.FC = () => {
-  const [connected, setConnected] = useState(socketService.isConnected());
+const RealtimeStatusIndicator: React.FC = () => {
+  const [connected, setConnected] = useState(streamService.isConnected());
 
   useEffect(() => {
     const handler = (isConnected: boolean) => setConnected(isConnected);
-    socketService.onConnectionChange(handler);
-    return () => socketService.offConnectionChange(handler);
+    streamService.onConnectionChange(handler);
+    return () => streamService.offConnectionChange(handler);
   }, []);
 
   const iconName = connected ? "wifi" : "cloud-offline";
@@ -31,7 +31,7 @@ const WebSocketStatusIndicator: React.FC = () => {
         zIndex: 10,
       }}
       onPress={() => {
-        if (!connected) socketService.connect();
+        if (!connected) streamService.connect();
       }}
     >
       <Ionicons
@@ -43,5 +43,5 @@ const WebSocketStatusIndicator: React.FC = () => {
   );
 };
 
-WebSocketStatusIndicator.displayName = "WebSocketStatusIndicator";
-export default React.memo(WebSocketStatusIndicator);
+RealtimeStatusIndicator.displayName = "RealtimeStatusIndicator";
+export default React.memo(RealtimeStatusIndicator);

@@ -78,6 +78,8 @@ export interface IDeliveryAssignmentEntity extends IGlobalEntity {
   assignedAt: Date;
   acceptedAt: Date;
   completedAt: Date;
+  /** Hora programada por el cliente (estado 'programado'; ISO 8601). */
+  scheduledAt?: string | null;
   relatedOrder?: OrderEntity;
   driver: IDeliveryPerson;
   isGroup: boolean;
