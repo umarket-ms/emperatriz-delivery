@@ -1,0 +1,23 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.valentinrod.tiendasdominicanas'
+version = '1.0.0'
+
+android {
+  namespace 'expo.modules.piplocal'
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}
+
+dependencies {
+  // expo-modules-core se inyecta como `compileOnly` (sin transitivas), así que
+  // hay que declarar appcompat a mano: de ahí vienen ComponentActivity
+  // (addOnPictureInPictureModeChangedListener) y androidx.core
+  // (Consumer<PictureInPictureModeChangedInfo>).
+  implementation expoLibs.androidx.appcompat
+}

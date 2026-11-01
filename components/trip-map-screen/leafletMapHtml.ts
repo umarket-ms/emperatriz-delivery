@@ -22,6 +22,14 @@ export const LEAFLET_MAP_HTML = `
       maxZoom: 19,
     }).addTo(map);
 
+    // Al entrar/salir de Picture-in-Picture (o rotar) el contenedor cambia de
+    // tamaño; sin invalidateSize() Leaflet dibuja las tiles desalineadas.
+    var resizeTimer = null;
+    window.addEventListener('resize', function() {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function() { map.invalidateSize(); }, 120);
+    });
+
     var routePolylines = [];
     var courierMarker = null;
     var traveledPolyline = null;

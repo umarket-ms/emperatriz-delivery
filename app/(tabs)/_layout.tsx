@@ -6,6 +6,7 @@ import { ColorValue } from 'react-native';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { CustomColors } from '@/constants/CustomColors';
 import { RouteProvider } from '@/contexts/RouteContext';
+import { usePip } from '@/contexts/PipContext';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -16,6 +17,8 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
+  const { isInPipMode } = usePip();
+
   return (
     <RouteProvider>
     <Tabs
@@ -23,12 +26,15 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: CustomColors.primary,
         tabBarInactiveTintColor: CustomColors.neutralLight,
+        // En PiP la ventana es diminuta: la barra de pestañas se oculta para
+        // que solo se vea el mapa. Al expandir vuelve sola.
         tabBarStyle: {
           backgroundColor: CustomColors.tabBarBackground,
           borderTopColor: CustomColors.border,
           height: 64,
           paddingBottom: 8,
           paddingTop: 4,
+          display: isInPipMode ? 'none' : 'flex',
         },
         tabBarLabelStyle: {
           fontWeight: '600',

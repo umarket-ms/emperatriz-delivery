@@ -14,6 +14,32 @@ import { ensureFreshAccessToken } from "./tokenManager";
 export const COURIER_BACKGROUND_LOCATION_TASK = "COURIER_BACKGROUND_LOCATION";
 
 /**
+ * Detecta el rechazo propio de Android 12+ (API 31) al arrancar un foreground
+ * service desde segundo plano:
+ *
+ *   "Couldn't start the foreground service. Foreground service cannot be
+ *    started when the application is in the background"
+ *
+ * Depende del mensaje porque expo-location lo envuelve en un CodedError sin
+ * código propio. Se normaliza a minúsculas y con espacios simples para no
+ * acoplarnos a la redacción exacta ni a los saltos de línea del stack.
+ */
+export function isForegroundServiceBackgroundStartError(error: unknown): boolean {
+  const message = (
+    (error as { message?: string } | null)?.message ??
+    (typeof error === "string" ? error : "") ??
+    ""
+  )
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+  return (
+    message.includes("foreground service") &&
+    (message.includes("background") || message.includes("segundo plano"))
+  );
+}
+
+/**
  * Interface para la ubicación del mensajero
  */
 interface CourierLocation {
@@ -82,6 +108,12 @@ class CourierLocationTrackingService {
   private manualLocationOverride: { lat: number; lng: number; accuracy: number } | null = null;
   private hasBackgroundPermission: boolean = false;
   private isBackgroundUpdatesActive: boolean = false;
+  /**
+   * true si el arranque de background updates quedó diferido por estar la app
+   * en background (Android 12+ prohíbe arrancar el foreground service desde
+   * segundo plano). Se reintenta al volver a foreground.
+   */
+  private pendingBackgroundStart: boolean = false;
 
   /**
    * Inicializa el servicio con la configuración
@@ -243,9 +275,14 @@ class CourierLocationTrackingService {
           "[LocationTracking] Background updates ya activas, omitiendo start",
         );
         this.isBackgroundUpdatesActive = true;
+        this.pendingBackgroundStart = false;
         return;
       }
 
+      // Nota: no se pre-comprueba AppState.currentState aquí. RN reporta
+      // 'background' también en Picture-in-Picture, donde la app sí está
+      // visible y Android SÍ permite arrancar el servicio; pre-comprobar
+      // causaría falsos diferidos. El `catch` es la fuente exacta de verdad.
       await Location.startLocationUpdatesAsync(COURIER_BACKGROUND_LOCATION_TASK, {
         accuracy: Location.Accuracy.Balanced,
         timeInterval: this.config.updateInterval,
@@ -262,13 +299,27 @@ class CourierLocationTrackingService {
       });
 
       this.isBackgroundUpdatesActive = true;
+      this.pendingBackgroundStart = false;
       console.log("[LocationTracking] ✅ Background location updates iniciadas");
     } catch (error: any) {
+      this.isBackgroundUpdatesActive = false;
+
+      if (isForegroundServiceBackgroundStartError(error)) {
+        // Rechazo propio de Android 12+: no es un fallo recuperable a ciegas,
+        // el sistema seguirá rechazando hasta que la app vuelve a foreground.
+        // Se marca pendiente y se reintenta en el próximo 'active'.
+        this.pendingBackgroundStart = true;
+        console.log(
+          "[LocationTracking] ⏳ Foreground service rechazado por estar la app en background; se reintentará al volver a foreground",
+        );
+        return;
+      }
+
       console.error(
         "[LocationTracking] Error al iniciar background updates:",
         error,
       );
-      this.isBackgroundUpdatesActive = false;
+      this.pendingBackgroundStart = false;
     }
   }
 
@@ -491,14 +542,25 @@ class CourierLocationTrackingService {
         this.startFallbackTimer();
       }
 
-      // Si el usuario acaba de otorgar el permiso de background (p. ej. desde
-      // ajustes tras el modal), intentar arrancar las background updates ahora.
+      // Arrancar background updates si corresponde, cubriendo dos casos:
+      //  a) el permiso de background acaba de otorgarse (p. ej. desde ajustes
+      //     tras el modal);
+      //  b) el arranque anterior quedó diferido porque el sistema rechazó el
+      //     foreground service por estar la app en background (Android 12+).
+      // El reintento vive dentro de startBackgroundUpdates(): su `catch`
+      // distingue ese rechazo de un error real y vuelve a diferir si hace falta.
       if (this.isTracking && !this.isBackgroundUpdatesActive) {
         const hasBackground = await this.hasBackgroundPermissions();
         if (hasBackground) {
-          console.log(
-            "[LocationTracking] Permiso de background recién otorgado, iniciando updates",
-          );
+          if (this.pendingBackgroundStart) {
+            console.log(
+              "[LocationTracking] Reintentando background updates diferidos al volver a foreground",
+            );
+          } else {
+            console.log(
+              "[LocationTracking] Permiso de background recién otorgado, iniciando updates",
+            );
+          }
           await this.startBackgroundUpdates();
         }
       }

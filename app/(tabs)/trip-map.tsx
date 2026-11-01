@@ -34,6 +34,7 @@ import ElementsBottomSheet from "@/components/ElementsBottomSheet";
 import type { ElementsBottomSheetMethods } from "@/components/ElementsBottomSheet";
 import { Ionicons } from "@expo/vector-icons";
 import { useDelivery } from "@/context/DeliveryContext";
+import { usePip } from "@/contexts/PipContext";
 
 export default function TripMapScreen() {
   const {
@@ -47,6 +48,9 @@ export default function TripMapScreen() {
   } = useRouteContext();
 
   const { allDeliveries } = useDelivery();
+
+  // ===== Picture-in-Picture (ventana flotante al minimizar) =====
+  const { isInPipMode, isPipAvailable, minimizeToPip, setAutoEnterEnabled } = usePip();
 
   // ===== Entregas programadas (hora pactada con el cliente) =====
   const { scheduledDeliveries } = useScheduledDeliveries(allDeliveries);
@@ -120,6 +124,21 @@ export default function TripMapScreen() {
     setSelectedAssignment,
     setAssignmentModalVisible,
   } = useTripModals(groupedWaypoints, tripDeliveries);
+
+  // ===== Auto-entrada a PiP al pulsar Home =====
+  // Solo con viaje activo y sin modales abiertos: si no, el courier no podría
+  // reabrir la app desde el login o atender un modal con la app minimizada.
+  const hasActiveTrip = !!tripData && groupedWaypoints.length > 0;
+  const anyModalOpen = groupStatusModalVisible || assignmentModalVisible;
+  const autoEnterTarget = hasActiveTrip && !anyModalOpen;
+
+  useEffect(() => {
+    if (!isPipAvailable) return;
+    setAutoEnterEnabled(autoEnterTarget);
+    // Al desmontar (cambio de pantalla, cierre de app) siempre desactivamos,
+    // para no dejar la app "pegada" en PiP en arranques futuros.
+    return () => setAutoEnterEnabled(false);
+  }, [isPipAvailable, autoEnterTarget, setAutoEnterEnabled]);
 
   // ----- Position tracking state -----
   const [isTraveling, setIsTraveling] = useState<boolean>(false);
@@ -386,11 +405,38 @@ export default function TripMapScreen() {
     : null;
   const hasAssignments = tripDeliveries.length > 0;
 
+  // ===== Layout compacto para la ventana flotante (PiP) =====
+  // En PiP la ventana mide unos pocos cm²: se muestra solo el mapa + un banner
+  // delgado con la próxima dirección. Sin paneles, FABs ni controles (la ventana
+  // además no recibe toques; el sistema provee expandir/cerrar).
+  //
+  // IMPORTANTE: la raíz del árbol (SafeAreaView > View > TripMapView) debe ser
+  // idéntica a la del layout completo. Si cambia el tipo del nodo raíz, React
+  // desmonta el WebView y Leaflet pierde ruta/marcadores justo al minimizar.
+  const nextDelivery = currentGroup?.deliveries?.[0];
+  const nextAddress = nextDelivery?.deliveryAddress || nextDelivery?.title || "";
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <View style={styles.container}>
         <TripMapView webViewRef={webViewRef} onMessage={handleWebViewMessage} />
 
+        {isInPipMode ? (
+          <View style={pipStyles.banner}>
+            <Text style={pipStyles.bannerLabel} numberOfLines={1}>
+              {nextAddress ? `📍 ${nextAddress}` : "🚚 Viaje en curso"}
+            </Text>
+            <Text style={pipStyles.bannerMeta}>
+              {(isTraveling ? remainingDistance : totalDistance) >= 1000
+                ? `${((isTraveling ? remainingDistance : totalDistance) / 1000).toFixed(1)} km`
+                : `${Math.round(isTraveling ? remainingDistance : totalDistance)} m`}
+              {" · "}
+              {Math.round((isTraveling ? remainingDuration : totalDuration) / 60)} min
+              {hasAssignments ? ` · ${groupedWaypoints.length} paradas` : ""}
+            </Text>
+          </View>
+        ) : (
+          <>
         <ScheduledDeliveriesPanel scheduledDeliveries={scheduledDeliveries} />
 
         <CenterLocationButton
@@ -424,6 +470,19 @@ export default function TripMapScreen() {
         >
           <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>
         </Pressable>
+
+        {/* Minimizar a ventana flotante (PiP). Visible solo con viaje activo:
+            el propio módulo es no-op si el dispositivo no soporta PiP. */}
+        {hasActiveTrip && isPipAvailable && (
+          <Pressable
+            style={fabStyles.minimizeButton}
+            onPress={() => minimizeToPip()}
+            accessibilityRole="button"
+            accessibilityLabel="Minimizar a ventana flotante"
+          >
+            <Text style={fabStyles.minimizeButtonText}>🗜</Text>
+          </Pressable>
+        )}
 
         <View style={styles.controlsContainer}>
           <MapControls
@@ -486,6 +545,8 @@ export default function TripMapScreen() {
             totalAmount={groupStatusModalParams.totalAmount}
           />
         )}
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -508,5 +569,53 @@ const fabStyles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     zIndex: 100,
+  },
+  minimizeButton: {
+    position: "absolute",
+    top: 124,
+    right: 16,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: CustomColors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 8,
+    shadowColor: CustomColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    zIndex: 10,
+  },
+  minimizeButtonText: {
+    fontSize: 20,
+    lineHeight: 24,
+  },
+});
+
+// Estilos del layout compacto que se muestra dentro de la ventana flotante (PiP).
+// La ventana mide unos pocos cm², así que todo es minimal y a alta jerarquía.
+const pipStyles = StyleSheet.create({
+  banner: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    right: 8,
+    backgroundColor: "rgba(17, 24, 39, 0.88)",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: CustomColors.primary,
+  },
+  bannerLabel: {
+    color: CustomColors.white,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  bannerMeta: {
+    color: CustomColors.textLight,
+    fontSize: 11,
+    marginTop: 2,
   },
 });

@@ -112,6 +112,7 @@
           "root": "./app"
         }
       ],
+      "./modules/expo-pip-local/app.plugin.js",
       [
         "expo-location",
         {

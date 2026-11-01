@@ -5,7 +5,9 @@ node_modules/
 
 # Expo
 .expo/
-android/
+# Anclado a la raíz: ignora el proyecto Android generado por `expo prebuild`,
+# pero NO el código fuente de los módulos locales en modules/*/android/.
+/android/
 ios/
 dist/
 web-build/
@@ -13,6 +15,8 @@ expo-env.d.ts
 
 # Native
 .kotlin/
+# Artefactos Gradle de los módulos locales (modules/expo-pip-local, etc.)
+modules/*/android/build/
 *.orig.*
 *.jks
 *.p8

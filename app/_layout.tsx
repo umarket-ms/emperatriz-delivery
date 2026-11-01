@@ -41,6 +41,7 @@ import { ActiveDeliveryProvider } from '@/context/ActiveDeliveryContext';
 import { DeliveryProvider } from '@/context/DeliveryContext';
 import { useDelivery } from '@/context/DeliveryContext';
 import { AvailableDeliveryProvider } from '@/context/AvailableDeliveryContext';
+import { PipProvider } from '@/contexts/PipContext';
 import { useColorScheme } from '@/components/useColorScheme';
 import { CustomColors } from '@/constants/CustomColors';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -289,6 +290,7 @@ function RootLayoutNav() {
           <ActiveDeliveryProvider>
             <DeliveryProvider>
               <AvailableDeliveryProvider>
+                <PipProvider>
                 <ThemeProvider value={navCustomTheme}>
                 <ProtectedRouteGuard>
                   <Stack screenOptions={{
@@ -307,6 +309,7 @@ function RootLayoutNav() {
                   <BackgroundLocationPermissionGate />
                 </ProtectedRouteGuard>
                 </ThemeProvider>
+                </PipProvider>
               </AvailableDeliveryProvider>
             </DeliveryProvider>
           </ActiveDeliveryProvider>

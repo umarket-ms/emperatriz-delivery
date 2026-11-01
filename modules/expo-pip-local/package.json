@@ -1,0 +1,7 @@
+{
+  "name": "expo-pip-local",
+  "version": "1.0.0",
+  "description": "Módulo local (Android-only) para Picture-in-Picture: ventana flotante al minimizar durante un viaje activo.",
+  "main": "src/index.ts",
+  "private": true
+}
