@@ -18,7 +18,7 @@ import {
   releaseDelivery,
 } from '@/core/actions/delivery.actions';
 import { useAuth } from '@/context/AuthContext';
-import { socketService, SocketEventType } from '@/services/websocketService';
+import { streamService, StreamEventType } from '@/services/eventStreamService';
 
 interface AvailableDeliveryContextType {
   available: AvailableDeliveryItem[];
@@ -219,12 +219,12 @@ export const AvailableDeliveryProvider: React.FC<
       void fetchAvailableRef.current(true);
     };
 
-    socketService.on(SocketEventType.DRIVER_ASSIGNED, onDriverAssigned);
-    socketService.on(SocketEventType.DELIVERY_REORDERED, onDeliveryReordered);
+    streamService.on(StreamEventType.DRIVER_ASSIGNED, onDriverAssigned);
+    streamService.on(StreamEventType.DELIVERY_REORDERED, onDeliveryReordered);
 
     return () => {
-      socketService.off(SocketEventType.DRIVER_ASSIGNED, onDriverAssigned);
-      socketService.off(SocketEventType.DELIVERY_REORDERED, onDeliveryReordered);
+      streamService.off(StreamEventType.DRIVER_ASSIGNED, onDriverAssigned);
+      streamService.off(StreamEventType.DELIVERY_REORDERED, onDeliveryReordered);
     };
   }, []);
 

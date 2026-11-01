@@ -5,8 +5,6 @@ import { IDeliveryStatus } from '@/interfaces/delivery/deliveryStatus';
 import { getDeliveries, getOptimizedRoute } from '@/core/actions/delivery.actions';
 import { useAuth } from '@/context/AuthContext';
 import { OsrmTripResult } from '@/core/actions/osrm.actions';
-import { socketService, SocketEventType } from '@/services/websocketService';
-
 interface RouteContextType {
   // Estado
   tripData: any;

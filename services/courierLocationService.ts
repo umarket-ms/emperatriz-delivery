@@ -1,6 +1,10 @@
 import * as Location from "expo-location";
 import { AppState, AppStateStatus, Platform } from "react-native";
-import { socketService } from "./websocketService";
+import { fetch } from "expo/fetch";
+import { streamService, StreamEventType } from "./eventStreamService";
+import { getApiUrl } from "./api";
+import { ApiEndpoints } from "../utils/api-endpoints";
+import { ensureFreshAccessToken } from "./tokenManager";
 
 /**
  * Nombre único de la tarea de ubicación en background.
@@ -86,17 +90,9 @@ class CourierLocationTrackingService {
     this.config = { ...DEFAULT_CONFIG, ...config };
     // console.log('[LocationTracking] Inicializado con config:', this.config);
 
-    // Registrar listeners para respuestas del backend
-    socketService.on("courier.location.ack", (data: any) => {
-      // console.log('[LocationTracking] ✅ ACK recibido del backend:', data);
-    });
-
-    socketService.on("courier.location.error", (error: any) => {
-      // console.error('[LocationTracking] ❌ Error recibido del backend:', error);
-    });
-
-    // Escuchar solicitudes de refresco de ubicación del backend (para asignación automática)
-    socketService.on("courier.location.refresh", async (_payload: any) => {
+    // Solicitudes de refresco de ubicación del backend (para asignación
+    // automática). Es un evento de BAJADA: llega por el stream SSE.
+    streamService.on(StreamEventType.REQUEST_LOCATION_REFRESH, async () => {
       console.log(
         "[LocationTracking] 🔄 Solicitud de refresco de ubicación recibida del backend",
       );
@@ -111,7 +107,7 @@ class CourierLocationTrackingService {
           speed: this.lastSentLocation.coords.speed ?? undefined,
           heading: this.lastSentLocation.coords.heading ?? undefined,
         };
-        socketService.emit("courier.location.update", cachedPayload);
+        void this.postLocation(cachedPayload);
       }
       // Luego intentar fresh GPS
       const location = await this.getCurrentLocation();
@@ -366,12 +362,11 @@ class CourierLocationTrackingService {
         // console.log('[LocationTracking] ✅ Permisos otorgados');
       }
 
-      // Verificar que el WebSocket esté conectado
-      const isSocketConnected = socketService.isConnected();
-      // console.log('[LocationTracking] WebSocket conectado:', isSocketConnected);
+      // Verificar que el stream de tiempo real esté conectado
+      const isStreamConnected = streamService.isConnected();
 
-      if (!isSocketConnected) {
-        // console.warn('[LocationTracking] ❌ WebSocket no conectado, no se inicia tracking');
+      if (!isStreamConnected) {
+        // console.warn('[LocationTracking] ❌ Stream no conectado, no se inicia tracking');
         return false;
       }
 
@@ -533,7 +528,7 @@ class CourierLocationTrackingService {
   private startFallbackTimer(): void {
     this.stopFallbackTimer();
     this.fallbackTimerId = setInterval(async () => {
-      if (!this.isTracking || !socketService.isConnected()) return;
+      if (!this.isTracking || !streamService.isConnected()) return;
       const now = Date.now();
       const timeSinceLastSent = now - this.lastSentTime;
       if (timeSinceLastSent >= this.config.updateInterval) {
@@ -592,7 +587,7 @@ class CourierLocationTrackingService {
       // });
 
       // Verificar que el WebSocket esté conectado
-      if (!socketService.isConnected()) {
+      if (!streamService.isConnected()) {
         // console.log('[LocationTracking] ⚠️ WebSocket desconectado, no se envía ubicación');
         return;
       }
@@ -639,16 +634,13 @@ class CourierLocationTrackingService {
   }
 
   /**
-   * Envía la ubicación al backend vía WebSocket.
+   * Envía la ubicación al backend vía POST /courier-locations.
    * Si hay una ubicación manual configurada (setManualLocation), siempre se
    * envía esa en lugar de la del dispositivo.
    */
   private sendLocationToBackend(location: Location.LocationObject) {
     try {
-      // console.log('[LocationTracking] 📤 sendLocationToBackend() llamado');
-
       if (!this.userId) {
-        // console.warn('[LocationTracking] ❌ No se puede enviar ubicación sin userId');
         return;
       }
 
@@ -674,27 +666,63 @@ class CourierLocationTrackingService {
             heading: location.coords.heading ?? undefined,
           };
 
-      console.log("[LocationTracking] Payload preparado:", payload);
-      console.log(
-        "[LocationTracking] Emitiendo evento courier.location.update...",
-      );
-
-      const sent = socketService.emit("courier.location.update", payload);
-
-      if (sent) {
-        console.log(
-          // `[LocationTracking] ✅ Ubicación enviada exitosamente: (${payload.lat.toFixed(6)}, ${payload.lng.toFixed(6)}) ` +
-          `accuracy: ${payload.accuracy.toFixed(1)}m`,
-        );
+      // Fire-and-forget: el envío es asíncrono (HTTP) y este método se llama
+      // desde timers y desde la tarea de background.
+      void this.postLocation(payload).then((sent) => {
+        if (!sent) return;
+        console.log(`[LocationTracking] accuracy: ${payload.accuracy.toFixed(1)}m`);
         this.lastSentLocation = override
           ? this.buildFakeLocationObject(override)
           : location;
         this.lastSentTime = Date.now();
-      } else {
-        // console.warn('[LocationTracking] ⚠️ No se pudo enviar ubicación (emit retornó false)');
-      }
+      });
     } catch (error: any) {
-      // console.error('[LocationTracking] ❌ Error al enviar ubicación:', error);
+      console.error('[LocationTracking] ❌ Error al enviar ubicación:', error);
+    }
+  }
+
+  /**
+   * POST /courier-locations — canal de SUBIDA de la ubicación.
+   *
+   * Sustituye al `socketService.emit('courier.location.update')` de la época
+   * de Socket.IO: en SSE solo existe el enlace de bajada, así que la subida
+   * va por REST. El status HTTP es el "ack" (antes `courier.location.ack`).
+   *
+   * Devuelve `false` si no hay token o el servidor rechaza; en ese caso no se
+   * actualiza `lastSentLocation` y el siguiente ciclo reintenta.
+   */
+  private async postLocation(payload: CourierLocation): Promise<boolean> {
+    try {
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        console.warn('[LocationTracking] ⚠️ Sin token, ubicación no enviada');
+        return false;
+      }
+
+      const response = await fetch(getApiUrl(ApiEndpoints.CourierLocations), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-App': 'delivery',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        console.warn(
+          `[LocationTracking] ⚠️ POST /courier-locations devolvió ${response.status}`,
+        );
+        return false;
+      }
+
+      return true;
+    } catch (error: any) {
+      console.warn(
+        '[LocationTracking] ⚠️ Error de red enviando ubicación:',
+        error?.message || error,
+      );
+      return false;
     }
   }
 
@@ -713,7 +741,7 @@ class CourierLocationTrackingService {
 
       this.manualLocationOverride = { lat, lng, accuracy };
 
-      if (!socketService.isConnected()) {
+      if (!streamService.isConnected()) {
         console.log('[LocationTracking] 📍 Ubicación manual establecida (pendiente de socket):', { lat, lng });
         return false;
       }

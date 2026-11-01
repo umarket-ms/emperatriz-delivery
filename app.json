@@ -17,16 +17,16 @@
     "scheme": "tiendasdominicanasdelivery",
     "extra": {
       "apiUrl": {
-        "EXPO_PUBLIC_API_URL_PROD": "https://api.tiendasdominicanas.com.do",
+        "EXPO_PUBLIC_API_URL_PROD": "https://api.mundeko.com",
         "EXPO_PUBLIC_API_URL_DEV_IOS": "http://localhost:80",
         "EXPO_PUBLIC_API_URL_DEV_ANDROID": "http://192.168.100.41:5500",
         "EXPO_PUBLIC_API_URL_DEFAULT": "http://192.168.100.41:5500"
       },
       "socketUrl": {
         "development": "http://192.168.100.41:5500",
-        "production": "https://api.tiendasdominicanas.com.do"
+        "production": "https://api.mundeko.com"
       },
-      "SENTRY_DSN": "https://576eb575e45146d3ac2395192d8cf6b5@glitchtip.tiendasdominicanas.com.do/6",
+      "SENTRY_DSN": "https://576eb575e45146d3ac2395192d8cf6b5@glitchtip.mundeko.com/6",
       "router": {
         "root": "./app"
       },
@@ -143,7 +143,7 @@
         {
           "organization": "tiendas-dominicanas",
           "project": "delivery",
-          "url": "https://glitchtip.tiendasdominicanas.com.do"
+          "url": "https://glitchtip.mundeko.com"
         }
       ],
       [

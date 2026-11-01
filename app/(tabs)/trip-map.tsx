@@ -15,7 +15,7 @@ import { useTripDerivedData } from "@/components/trip-map-screen/hooks/useTripDe
 import { useTripModals } from "@/components/trip-map-screen/hooks/useTripModals";
 import { useGroupProgressHandlers, progressionReducer, type ProgressionState } from "@/components/trip-map-screen/hooks/useGroupProgressHandlers";
 import { useMapCommunication } from "@/components/trip-map-screen/hooks/useMapCommunication";
-import { useSocketRouteUpdates } from "@/components/trip-map-screen/hooks/useSocketRouteUpdates";
+import { useRealtimeRouteUpdates } from "@/components/trip-map-screen/hooks/useRealtimeRouteUpdates";
 import { useRouteDeviation } from "@/components/trip-map-screen/hooks/useRouteDeviation";
 import { useGpsTracking } from "@/components/trip-map-screen/hooks/useGpsTracking";
 import { useSimulation } from "@/components/trip-map-screen/hooks/useSimulation";
@@ -25,7 +25,7 @@ import MapControls from "@/components/trip-map-screen/components/MapControls";
 import SimulationControls from "@/components/trip-map-screen/components/SimulationControls";
 import ManualLocationControls from "@/components/trip-map-screen/components/ManualLocationControls";
 import CenterLocationButton from "@/components/trip-map-screen/components/CenterLocationButton";
-import WebSocketStatusIndicator from "@/components/trip-map-screen/components/WebSocketStatusIndicator";
+import RealtimeStatusIndicator from "@/components/trip-map-screen/components/RealtimeStatusIndicator";
 import TripMapLoadingState from "@/components/trip-map-screen/components/TripMapLoadingState";
 import TripMapErrorState from "@/components/trip-map-screen/components/TripMapErrorState";
 import ScheduledDeliveriesPanel from "@/components/trip-map-screen/components/ScheduledDeliveriesPanel";
@@ -179,7 +179,7 @@ export default function TripMapScreen() {
     handleMarkerClickByDeliveryId,
   );
 
-  useSocketRouteUpdates(recalculateRef);
+  useRealtimeRouteUpdates(recalculateRef);
 
   const { detectRouteDeviation, recalculateRouteOnDeviation } = useRouteDeviation(recalculateRef);
 
@@ -304,7 +304,7 @@ export default function TripMapScreen() {
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.container}>
           <TripMapLoadingState />
-          <WebSocketStatusIndicator />
+          <RealtimeStatusIndicator />
           <ElementsBottomSheet ref={bottomSheetRef} />
         </View>
       </SafeAreaView>
@@ -316,7 +316,7 @@ export default function TripMapScreen() {
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.container}>
           <TripMapErrorState message={tripError} />
-          <WebSocketStatusIndicator />
+          <RealtimeStatusIndicator />
           <ElementsBottomSheet ref={bottomSheetRef} />
           {/* FAB for Elements sheet */}
           <Pressable style={fabStyles.fab} onPress={handleOpenSheet}>
@@ -349,7 +349,7 @@ export default function TripMapScreen() {
             }}
           />
 
-          <WebSocketStatusIndicator />
+          <RealtimeStatusIndicator />
 
           <Pressable
             style={styles.refreshAssignmentsButton}
@@ -415,7 +415,7 @@ export default function TripMapScreen() {
 
         {__DEV__ && <ManualLocationControls sendToMap={sendToMap} />}
 
-        <WebSocketStatusIndicator />
+        <RealtimeStatusIndicator />
 
         <Pressable
           style={styles.refreshAssignmentsButton}

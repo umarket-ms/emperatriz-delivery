@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { DeliveryItemAdapter } from '@/interfaces/delivery/deliveryAdapters';
 import { getDeliveries } from '@/core/actions/delivery.actions';
 import { useAuth } from '@/context/AuthContext';
-import { socketService, SocketEventType } from '@/services/websocketService';
+import { streamService, StreamEventType } from '@/services/eventStreamService';
 
 interface DeliveryContextType {
     deliveries: DeliveryItemAdapter[];
@@ -156,16 +156,16 @@ export const DeliveryProvider: React.FC<DeliveryProviderProps> = ({ children }) 
         handleDeliveryReorderedRef.current(data);
       };
 
-      socketService.on(SocketEventType.DRIVER_ASSIGNED, onDriverAssigned);
-      socketService.on(SocketEventType.DRIVERS_GROUP_ASSIGNED, onDriversGroupAssigned);
-      socketService.on(SocketEventType.DELIVERY_UPDATED, onDeliveryUpdated);
-      socketService.on(SocketEventType.DELIVERY_REORDERED, onDeliveryReordered);
+      streamService.on(StreamEventType.DRIVER_ASSIGNED, onDriverAssigned);
+      streamService.on(StreamEventType.DRIVERS_GROUP_ASSIGNED, onDriversGroupAssigned);
+      streamService.on(StreamEventType.DELIVERY_UPDATED, onDeliveryUpdated);
+      streamService.on(StreamEventType.DELIVERY_REORDERED, onDeliveryReordered);
 
       return () => {
-        socketService.off(SocketEventType.DRIVER_ASSIGNED, onDriverAssigned);
-        socketService.off(SocketEventType.DRIVERS_GROUP_ASSIGNED, onDriversGroupAssigned);
-        socketService.off(SocketEventType.DELIVERY_UPDATED, onDeliveryUpdated);
-        socketService.off(SocketEventType.DELIVERY_REORDERED, onDeliveryReordered);
+        streamService.off(StreamEventType.DRIVER_ASSIGNED, onDriverAssigned);
+        streamService.off(StreamEventType.DRIVERS_GROUP_ASSIGNED, onDriversGroupAssigned);
+        streamService.off(StreamEventType.DELIVERY_UPDATED, onDeliveryUpdated);
+        streamService.off(StreamEventType.DELIVERY_REORDERED, onDeliveryReordered);
       };
     }, []);
 

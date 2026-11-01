@@ -86,10 +86,13 @@ export async function clearRefreshInProgressFlag(): Promise<void> {
 let pendingRefresh: Promise<RefreshResult | null> | null = null;
 
 /**
- * Refresca el access token.
- * Intenta vía WebSocket primero (canal ya abierto, sin conflictos de rotación).
- * Si el WebSocket no está conectado, usa HTTP como fallback.
+ * Refresca el access token vía HTTP (`POST /auth/refresh-token`).
  * Deduplica requests concurrentes.
+ *
+ * Nota: antes intentaba primero por WebSocket (`token.refresh` con ack). Con
+ * la migración a SSE el canal de tiempo real es de SOLO bajada, así que el
+ * refresh vuelve a ser exclusivamente HTTP — que además es el único path con
+ * `TokenRefreshMiddleware` y contexto de tenant correcto.
  */
 export async function refreshAccessToken(): Promise<RefreshResult | null> {
   if (pendingRefresh) {
@@ -117,20 +120,6 @@ async function doRefresh(): Promise<RefreshResult | null> {
   await setRefreshInProgressFlag(refreshToken);
 
   try {
-    // Intentar vía WebSocket primero (lazy import para evitar dependencia circular)
-    try {
-      const { socketService } = await import('./websocketService');
-      if (socketService.isConnected()) {
-        console.log('[TokenManager] Intentando refresh vía WebSocket...');
-        const wsResult = await refreshViaWebSocket(socketService, refreshToken);
-        if (wsResult) return wsResult;
-        console.warn('[TokenManager] Refresh vía WebSocket falló, intentando HTTP...');
-      }
-    } catch {
-      // Si falla la importación del módulo, continuar con HTTP
-    }
-
-    // Fallback a HTTP
     return await refreshViaHttp(refreshToken);
   } finally {
     // Always clear the flag when refresh completes (success or failure)
@@ -148,69 +137,7 @@ function isDefinitiveRefreshError(errorCode?: string | null): boolean {
 }
 
 /**
- * Refresh vía WebSocket: emite 'token.refresh' y espera 'token.refreshed'.
- * Ventaja: usa el canal ya abierto, sin hacer un request HTTP separado.
- */
-async function refreshViaWebSocket(socketService: any, refreshToken: string): Promise<RefreshResult | null> {
-  try {
-    const response = await socketService.emitWithAck('token.refresh', {
-      refresh_token: refreshToken,
-    }, 15_000);
-
-    if (!response) {
-      console.warn('[TokenManager] WS refresh: sin respuesta del servidor (timeout/red) — NO limpiando token');
-      return null;
-    }
-
-    // El backend emite un error con message + code
-    if (response.message) {
-      const errorCode = response.code as string | undefined;
-      console.warn(`[TokenManager] WS refresh error: ${response.message} (code: ${errorCode})`);
-
-      // Do NOT clear tokens here — the HTTP fallback will handle definitive errors.
-      // The WS handler may lack tenant context, causing false NOT_FOUND errors.
-      // Let the HTTP path (which has proper middleware) be the authority on clearing.
-      console.warn('[TokenManager] WS refresh failed, delegando limpieza al path HTTP si es necesario');
-      return null;
-    }
-
-    if (!response.access_token) {
-      console.warn('[TokenManager] WS refresh: respuesta sin access_token');
-      return null;
-    }
-
-    // Actualizar tokens en memoria
-    authStore.setAccessToken(response.access_token);
-    if (response.csrf_token) {
-      authStore.setCsrfToken(response.csrf_token);
-    }
-
-    // Actualizar refresh token en SecureStore
-    if (response.refresh_token) {
-      await storeRefreshToken(response.refresh_token);
-    }
-
-    // Validar token
-    validateJwtHasEnterprise(response.access_token);
-    logJwtValidation(response.access_token, 'refresh-ws');
-
-    console.log('[TokenManager] Token refrescado exitosamente vía WebSocket');
-
-    return {
-      accessToken: response.access_token,
-      csrfToken: response.csrf_token ?? null,
-      refreshToken: response.refresh_token ?? null,
-      user: response.user ?? null,
-      carrier: response.carrier ?? null,
-    };
-  } catch (error: any) {
-    console.error('[TokenManager] Error en refresh vía WebSocket (timeout/red) — NO limpiando token:', error?.message || error);
-    return null;
-  }
-}
-
-/**
- * Refresh vía HTTP: POST /auth/refresh-token (fallback cuando no hay WebSocket).
+ * Refresh vía HTTP: POST /auth/refresh-token.
  */
 async function refreshViaHttp(refreshToken: string): Promise<RefreshResult | null> {
   try {

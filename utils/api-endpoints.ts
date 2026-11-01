@@ -36,6 +36,12 @@ export enum ApiEndpoints {
   AuthResetPassword = 'auth/reset-password',
 
   // ==========================================================================
+  // Tiempo real (SSE) y ubicación del mensajero
+  // ==========================================================================
+  Events = 'events',
+  CourierLocations = 'courier-locations',
+
+  // ==========================================================================
   // App Version
   // ==========================================================================
   AppVersion = 'app-version',

@@ -32,7 +32,7 @@ La app está estructurada en capas:
 Archivo: `package.json`
 
 - `expo`, `react-native`, `expo-router`
-- `socket.io-client`
+- `expo/fetch` (streaming SSE para el tiempo real — sustituye a `socket.io-client`)
 - `react-native-maps`
 - `expo-location`
 - `expo-image-picker`
