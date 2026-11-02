@@ -188,6 +188,12 @@ class PipModule : Module() {
     val listener = Consumer<PictureInPictureModeChangedInfo> { info ->
       Log.d(TAG, "onPictureInPictureModeChanged → ${info.isInPictureInPictureMode}")
       sendEvent(EVENT_PIP_MODE_CHANGED, mapOf("isInPipMode" to info.isInPictureInPictureMode))
+      if (info.isInPictureInPictureMode) {
+        // La activity ya está en pausa (PiP = paused) y Fabric dejó de despachar
+        // frames de UI; sin esto los commits de React (ocultar paneles/tabs)
+        // quedan en cola y solo se pintan al expandir la ventana.
+        resumeFabricUiFrames()
+      }
     }
 
     pipListener = listener
@@ -204,5 +210,43 @@ class PipModule : Module() {
     }
     pipListener = null
     registeredActivity = null
+  }
+
+  /**
+   * React Native 0.76+ (Fabric) pausa el dispatch de UI cuando la activity
+   * entra en pausa — y entrar a PiP pausa la activity. Resultado: los commits
+   * de React (p. ej. ocultar paneles/tabs al minimizar) quedan en cola y no se
+   * pintan hasta expandir la ventana (bug conocido: "State Updates Not
+   * Reflected in PIP Mode with New Architecture", SO 79584231).
+   *
+   * Este workaround reanuda el frame callback de Fabric solo al entrar a PiP,
+   * para que los commits se apliquen en vivo dentro de la ventanita. Al
+   * expandir, RN llama a onHostResume → resume() (idempotente); si la app
+   * sale de primer plano de verdad, onHostPause → pause() restaura el
+   * comportamiento normal de ahorro de batería.
+   *
+   * Usa reflexión sobre un campo interno de RN: si una actualización lo
+   * cambia, el catch lo deja como no-op (la app sigue funcionando, solo que
+   * sin este ajuste visual en PiP).
+   */
+  private fun resumeFabricUiFrames() {
+    try {
+      val reactContext = appContext.reactContext ?: return
+      // Reflexión completa: evita depender de la superficie pública exacta de
+      // ReactContext en cada versión de RN.
+      val uiManager = reactContext.javaClass
+        .getMethod("getFabricUIManager")
+        .invoke(reactContext) ?: return
+      val field = Class.forName("com.facebook.react.fabric.FabricUIManager")
+        .getDeclaredField("mDispatchUIFrameCallback")
+      field.isAccessible = true
+      val callback = field.get(uiManager) ?: return
+      val resume = callback.javaClass.getDeclaredMethod("resume")
+      resume.isAccessible = true
+      resume.invoke(callback)
+      Log.d(TAG, "frames de Fabric reanudados para PiP")
+    } catch (t: Throwable) {
+      Log.w(TAG, "no se pudieron reanudar los frames de Fabric: $t")
+    }
   }
 }

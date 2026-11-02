@@ -1,5 +1,5 @@
 import { requireOptionalNativeModule } from 'expo-modules-core';
-import { useEffect, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 
 /**
@@ -103,37 +103,76 @@ export async function enterPipMode(
   }
 }
 
-/** Se suscribe a los cambios de modo PiP y devuelve el estado actual. */
-export function useIsInPipMode(): boolean {
-  const [isInPipMode, setIsInPipMode] = useState(false);
+/**
+ * Se suscribe a los cambios de modo PiP y devuelve el estado actual.
+ *
+ * IMPORTANTE (bug real corregido): el estado vive en un store singleton a
+ * nivel de módulo, NO en un useState del hook. La versión anterior usaba
+ * `useState` + un listener creado en `useEffect` con un flag `mounted`; en el
+ * dispositivo se observó que el evento nativo SÍ llegaba (se imprimía el log
+ * "evento recibido") pero el `setState` se perdía porque el closure pertenecía
+ * a un effect ya desmontado (Fast Refresh / remontajes del provider), dejando
+ * la UI con `isInPipMode=false` mientras la ventana era PiP.
+ *
+ * Con el singleton: el listener nativo se registra UNA sola vez (cuando el
+ * primer suscriptor se engancha), el snapshot es único para todos los
+ * consumidores y `useSyncExternalStore` garantiza que cada render lea el
+ * valor actual, sin closures obsoletos.
+ */
 
-  useEffect(() => {
-    if (!ExpoPip) {
-      console.log('[ExpoPip] módulo nativo no disponible (iOS/web o sin rebuild)');
-      return;
-    }
+type PipListener = () => void;
 
-    // Estado inicial (el evento de OnStartObserving también lo manda, pero
-    // cubrimos el caso en que el listener tarde en registrar).
-    let mounted = true;
+let pipSnapshot = false;
+let pipSubscription: { remove(): void } | null = null;
+const pipListeners = new Set<PipListener>();
+
+function emitPipSnapshot(next: boolean): void {
+  if (pipSnapshot === next) return;
+  pipSnapshot = next;
+  pipListeners.forEach((listener) => listener());
+}
+
+function subscribePip(listener: PipListener): () => void {
+  pipListeners.add(listener);
+
+  // El primer suscriptor dispara el registro del listener nativo + el estado
+  // inicial. Si ya hay uno registrado, no se duplica.
+  if (!pipSubscription && ExpoPip) {
     isInPipModeAsync()
       .then((initial) => {
         console.log(`[ExpoPip] estado inicial isInPipMode=${initial}`);
-        if (mounted) setIsInPipMode(initial);
+        emitPipSnapshot(initial);
       })
       .catch(() => {});
 
-    const subscription = ExpoPip.addListener('onPipModeChanged', (event) => {
+    pipSubscription = ExpoPip.addListener('onPipModeChanged', (event) => {
       const next = !!event?.isInPipMode;
       console.log(`[ExpoPip] evento recibido: isInPipMode=${next}`);
-      if (mounted) setIsInPipMode(next);
+      emitPipSnapshot(next);
     });
+  }
 
-    return () => {
-      mounted = false;
-      subscription.remove();
-    };
+  return () => {
+    pipListeners.delete(listener);
+    // Si nadie queda suscrito, se libera el listener nativo para no acumular
+    // referencias (el próximo suscriptor lo vuelve a registrar).
+    if (pipListeners.size === 0 && pipSubscription) {
+      pipSubscription.remove();
+      pipSubscription = null;
+    }
+  };
+}
+
+function getPipSnapshot(): boolean {
+  return pipSnapshot;
+}
+
+export function useIsInPipMode(): boolean {
+  useEffect(() => {
+    if (!ExpoPip) {
+      console.log('[ExpoPip] módulo nativo no disponible (iOS/web o sin rebuild)');
+    }
   }, []);
 
-  return isInPipMode;
+  return useSyncExternalStore(subscribePip, getPipSnapshot, getPipSnapshot);
 }

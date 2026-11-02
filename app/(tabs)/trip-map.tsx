@@ -406,35 +406,22 @@ export default function TripMapScreen() {
   const hasAssignments = tripDeliveries.length > 0;
 
   // ===== Layout compacto para la ventana flotante (PiP) =====
-  // En PiP la ventana mide unos pocos cm²: se muestra solo el mapa + un banner
-  // delgado con la próxima dirección. Sin paneles, FABs ni controles (la ventana
-  // además no recibe toques; el sistema provee expandir/cerrar).
+  // En PiP la ventana (240×360dp) se usa para vigilar el mapa en vivo: se
+  // muestra SOLO el mapa + el indicador de conexión con el servidor (wifi).
+  // Nada más: sin banner, paneles, FABs, controles ni modales (la ventana
+  // además no recibe toques; el sistema provee expandir/cerrar). Los tabs
+  // también se ocultan — ver app/(tabs)/_layout.tsx.
   //
   // IMPORTANTE: la raíz del árbol (SafeAreaView > View > TripMapView) debe ser
   // idéntica a la del layout completo. Si cambia el tipo del nodo raíz, React
   // desmonta el WebView y Leaflet pierde ruta/marcadores justo al minimizar.
-  const nextDelivery = currentGroup?.deliveries?.[0];
-  const nextAddress = nextDelivery?.deliveryAddress || nextDelivery?.title || "";
-
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <View style={styles.container}>
         <TripMapView webViewRef={webViewRef} onMessage={handleWebViewMessage} />
 
         {isInPipMode ? (
-          <View style={pipStyles.banner}>
-            <Text style={pipStyles.bannerLabel} numberOfLines={1}>
-              {nextAddress ? `📍 ${nextAddress}` : "🚚 Viaje en curso"}
-            </Text>
-            <Text style={pipStyles.bannerMeta}>
-              {(isTraveling ? remainingDistance : totalDistance) >= 1000
-                ? `${((isTraveling ? remainingDistance : totalDistance) / 1000).toFixed(1)} km`
-                : `${Math.round(isTraveling ? remainingDistance : totalDistance)} m`}
-              {" · "}
-              {Math.round((isTraveling ? remainingDuration : totalDuration) / 60)} min
-              {hasAssignments ? ` · ${groupedWaypoints.length} paradas` : ""}
-            </Text>
-          </View>
+          <RealtimeStatusIndicator />
         ) : (
           <>
         <ScheduledDeliveriesPanel scheduledDeliveries={scheduledDeliveries} />
@@ -590,32 +577,5 @@ const fabStyles = StyleSheet.create({
   minimizeButtonText: {
     fontSize: 20,
     lineHeight: 24,
-  },
-});
-
-// Estilos del layout compacto que se muestra dentro de la ventana flotante (PiP).
-// La ventana mide unos pocos cm², así que todo es minimal y a alta jerarquía.
-const pipStyles = StyleSheet.create({
-  banner: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    right: 8,
-    backgroundColor: "rgba(17, 24, 39, 0.88)",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: CustomColors.primary,
-  },
-  bannerLabel: {
-    color: CustomColors.white,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  bannerMeta: {
-    color: CustomColors.textLight,
-    fontSize: 11,
-    marginTop: 2,
   },
 });

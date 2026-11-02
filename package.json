@@ -2,6 +2,14 @@
   "name": "emperatriz-delivery",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "expo": {
+    "autolinking": {
+      "buildFromSource": [
+        "expo-task-manager",
+        "unimodules-app-loader"
+      ]
+    }
+  },
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -16,7 +24,8 @@
     "update:preview": "eas update --branch preview --message \"Preview update\"",
     "build:android": "eas build --platform android --profile production",
     "build:android:preview": "eas build --platform android --profile preview",
-    "doctor": "npx react-doctor@latest"
+    "doctor": "npx react-doctor@latest",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -67,6 +76,7 @@
     "@types/react": "~19.2.4",
     "jest": "~29.7.0",
     "jest-expo": "~57.0.5",
+    "patch-package": "^8.0.1",
     "react-test-renderer": "19.2.3",
     "typescript": "~6.0.3"
   },

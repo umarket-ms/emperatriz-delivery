@@ -1,0 +1,29 @@
+diff --git a/node_modules/expo-task-manager/android/src/main/java/expo/modules/taskManager/TaskManagerUtils.java b/node_modules/expo-task-manager/android/src/main/java/expo/modules/taskManager/TaskManagerUtils.java
+index 82bc0db..5a4b270 100644
+--- a/node_modules/expo-task-manager/android/src/main/java/expo/modules/taskManager/TaskManagerUtils.java
++++ b/node_modules/expo-task-manager/android/src/main/java/expo/modules/taskManager/TaskManagerUtils.java
+@@ -143,7 +143,12 @@ public class TaskManagerUtils implements TaskManagerUtilsInterface {
+         JobInfo mergedJobInfo = createJobInfoByAddingData(newestJob, data);
+         jobScheduler.cancel(newestJob.getId());
+         jobScheduler.schedule(mergedJobInfo);
+-      } catch (IllegalStateException e) {
++      } catch (IllegalStateException | IllegalArgumentException e) {
++        // IllegalArgumentException: MIUI (y algunos OEM) rechazan jobs con
++        // setPersisted(true) aunque RECEIVE_BOOT_COMPLETED esté concedido en
++        // dumpsys. Sin este catch la excepción escapa por TaskBroadcastReceiver
++        // y mata la app con "Unable to start receiver ... requested job be
++        // persisted without holding RECEIVE_BOOT_COMPLETED permission".
+         Log.e(this.getClass().getName(), "Unable to merge job: " + e.getMessage());
+       }
+       return;
+@@ -153,7 +158,9 @@ public class TaskManagerUtils implements TaskManagerUtilsInterface {
+     try {
+       JobInfo jobInfo = createJobInfo(context, task, newJobId, data);
+       jobScheduler.schedule(jobInfo);
+-    } catch (IllegalStateException e) {
++    } catch (IllegalStateException | IllegalArgumentException e) {
++      // Ver comentario del catch anterior: en MIUI schedule() lanza
++      // IllegalArgumentException por el check de RECEIVE_BOOT_COMPLETED.
+       Log.e(this.getClass().getName(), "Unable to schedule job: " + e.getMessage());
+     }
+   }
