@@ -1,6 +1,8 @@
 import React from "react";
-import { Pressable, Text } from "react-native";
+import { Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../tripMapStyles";
+import { CustomColors } from "@/constants/CustomColors";
 import { Coordinate } from "../types";
 
 interface CenterLocationButtonProps {
@@ -13,12 +15,14 @@ const CenterLocationButton: React.FC<CenterLocationButtonProps> = React.memo(
     return (
       <Pressable
         style={[
-          styles.centerButton,
+          styles.fabMenuItem,
           !currentPosition && { opacity: 0.4 },
         ]}
         onPress={onCenter}
+        accessibilityRole="button"
+        accessibilityLabel="Centrar en mi ubicación"
       >
-        <Text style={styles.centerButtonText}>📍</Text>
+        <Ionicons name="locate" size={22} color={CustomColors.textDark} />
       </Pressable>
     );
   },

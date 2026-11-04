@@ -1,6 +1,8 @@
 import React from "react";
-import { Pressable, Text } from "react-native";
+import { Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../tripMapStyles";
+import { CustomColors } from "@/constants/CustomColors";
 
 interface SimulationControlsProps {
   isManualSimulation: boolean;
@@ -12,14 +14,20 @@ const SimulationControls: React.FC<SimulationControlsProps> = React.memo(
     return (
       <Pressable
         style={[
-          styles.simulationButton,
+          styles.fabMenuItem,
           isManualSimulation && styles.simulationButtonActive,
         ]}
         onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityLabel={
+          isManualSimulation ? "Pausar simulación de ruta" : "Iniciar simulación de ruta"
+        }
       >
-        <Text style={styles.simulationButtonText}>
-          {isManualSimulation ? "⏸" : "▶️"}
-        </Text>
+        <Ionicons
+          name={isManualSimulation ? "pause" : "play"}
+          size={22}
+          color={CustomColors.textDark}
+        />
       </Pressable>
     );
   },

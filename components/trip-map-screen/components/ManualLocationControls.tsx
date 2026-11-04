@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { CustomColors } from "@/constants/CustomColors";
 import { courierLocationTracking } from "@/services/courierLocationService";
 
@@ -65,8 +66,10 @@ const ManualLocationControls: React.FC<ManualLocationControlsProps> = React.memo
         <Pressable
           style={[styles.button, isActive && styles.buttonActive]}
           onPress={() => setIsOpen((prev) => !prev)}
+          accessibilityRole="button"
+          accessibilityLabel="Simular ubicación"
         >
-          <Text style={styles.buttonText}>📍</Text>
+          <Ionicons name="location" size={22} color={CustomColors.textDark} />
         </Pressable>
 
         {isOpen && (
@@ -81,15 +84,25 @@ const ManualLocationControls: React.FC<ManualLocationControlsProps> = React.memo
                   style={styles.option}
                   onPress={() => handleSelect(option)}
                 >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      isSelected && styles.optionTextActive,
-                    ]}
-                  >
-                    {isSelected ? "● " : "○ "}
-                    {option.label}
-                  </Text>
+                  <View style={styles.optionRow}>
+                    <Ionicons
+                      name={isSelected ? "radio-button-on" : "radio-button-off"}
+                      size={16}
+                      color={
+                        isSelected
+                          ? CustomColors.warning
+                          : CustomColors.textLight + "99"
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.optionText,
+                        isSelected && styles.optionTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </View>
                   <Text style={styles.optionCoords}>
                     {option.latitude.toFixed(4)}, {option.longitude.toFixed(4)}
                   </Text>
@@ -98,7 +111,14 @@ const ManualLocationControls: React.FC<ManualLocationControlsProps> = React.memo
             })}
             {isActive && (
               <Pressable style={styles.option} onPress={handleClear}>
-                <Text style={styles.optionClear}>📡 Usar GPS real</Text>
+                <View style={styles.optionRow}>
+                  <Ionicons
+                    name="navigate"
+                    size={15}
+                    color={CustomColors.info}
+                  />
+                  <Text style={styles.optionClear}>Usar GPS real</Text>
+                </View>
               </Pressable>
             )}
           </View>
@@ -113,9 +133,6 @@ export default ManualLocationControls;
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
-    top: 178,
-    right: 16,
     alignItems: "flex-end",
     zIndex: 10,
   },
@@ -130,10 +147,6 @@ const styles = StyleSheet.create({
   },
   buttonActive: {
     backgroundColor: CustomColors.warning,
-  },
-  buttonText: {
-    fontSize: 20,
-    lineHeight: 24,
   },
   panel: {
     marginTop: 8,
@@ -161,6 +174,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
+  optionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   optionTextActive: {
     color: CustomColors.warning,
   },
@@ -168,6 +186,7 @@ const styles = StyleSheet.create({
     color: CustomColors.slate,
     fontSize: 12,
     marginTop: 2,
+    marginLeft: 24,
   },
   optionClear: {
     color: CustomColors.info,

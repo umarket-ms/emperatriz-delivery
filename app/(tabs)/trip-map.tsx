@@ -25,6 +25,7 @@ import MapControls from "@/components/trip-map-screen/components/MapControls";
 import SimulationControls from "@/components/trip-map-screen/components/SimulationControls";
 import ManualLocationControls from "@/components/trip-map-screen/components/ManualLocationControls";
 import CenterLocationButton from "@/components/trip-map-screen/components/CenterLocationButton";
+import FabMenu from "@/components/trip-map-screen/components/FabMenu";
 import RealtimeStatusIndicator from "@/components/trip-map-screen/components/RealtimeStatusIndicator";
 import TripMapLoadingState from "@/components/trip-map-screen/components/TripMapLoadingState";
 import TripMapErrorState from "@/components/trip-map-screen/components/TripMapErrorState";
@@ -355,31 +356,44 @@ export default function TripMapScreen() {
 
           <ScheduledDeliveriesPanel scheduledDeliveries={scheduledDeliveries} />
 
-          <CenterLocationButton
-            currentPosition={currentPosition}
-            onCenter={() => {
-              if (!currentPosition) return;
-              sendToMap({
-                type: "SET_VIEW",
-                latitude: currentPosition.latitude,
-                longitude: currentPosition.longitude,
-                zoom: 16,
-                follow: true,
-              });
-            }}
-          />
-
           <RealtimeStatusIndicator />
 
-          <Pressable
-            style={styles.refreshAssignmentsButton}
-            onPress={handleRefreshRoute}
-            disabled={!currentPosition || tripLoading}
-          >
-            <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>
-          </Pressable>
+          {/* Permanentes primero, opciones después */}
+          <FabMenu accessibilityLabel="Opciones del mapa">
+            {(close) => (
+              <>
+                <CenterLocationButton
+                  currentPosition={currentPosition}
+                  onCenter={() => {
+                    if (!currentPosition) return;
+                    sendToMap({
+                      type: "SET_VIEW",
+                      latitude: currentPosition.latitude,
+                      longitude: currentPosition.longitude,
+                      zoom: 16,
+                      follow: true,
+                    });
+                    close();
+                  }}
+                />
 
-          {__DEV__ && <ManualLocationControls sendToMap={sendToMap} />}
+                <Pressable
+                  style={styles.fabMenuItem}
+                  onPress={() => {
+                    handleRefreshRoute();
+                    close();
+                  }}
+                  disabled={!currentPosition || tripLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel="Actualizar ruta"
+                >
+                  <Ionicons name="refresh" size={22} color={CustomColors.textDark} />
+                </Pressable>
+
+                {__DEV__ && <ManualLocationControls sendToMap={sendToMap} />}
+              </>
+            )}
+          </FabMenu>
 
           <ElementsBottomSheet ref={bottomSheetRef} />
           <Pressable style={fabStyles.fab} onPress={handleOpenSheet}>
@@ -427,51 +441,71 @@ export default function TripMapScreen() {
           <>
         <ScheduledDeliveriesPanel scheduledDeliveries={scheduledDeliveries} />
 
-        <CenterLocationButton
-          currentPosition={currentPosition}
-          onCenter={() => {
-            if (!currentPosition) return;
-            sendToMap({
-              type: "SET_VIEW",
-              latitude: currentPosition.latitude,
-              longitude: currentPosition.longitude,
-              zoom: 16,
-              follow: true,
-            });
-          }}
-        />
-
-        {__DEV__ && routeCoordinates.length > 0 && (
-          <SimulationControls
-            isManualSimulation={isManualSimulation}
-            onToggle={() => setIsManualSimulation(!isManualSimulation)}
-          />
-        )}
-
-        {__DEV__ && <ManualLocationControls sendToMap={sendToMap} />}
-
         <RealtimeStatusIndicator />
 
-        <Pressable
-          style={styles.refreshAssignmentsButton}
-          onPress={handleRefreshRoute}
-          disabled={!currentPosition || tripLoading}
-        >
-          <Text style={styles.refreshAssignmentsButtonText}>🔄</Text>
-        </Pressable>
+        {/* Botones de la esquina superior derecha, colapsados en un FAB.
+            Orden: primero los permanentes, después las opciones. */}
+        <FabMenu accessibilityLabel="Opciones del mapa">
+          {(close) => (
+            <>
+              {/* ── Permanentes ─────────────────────────────── */}
+              <CenterLocationButton
+                currentPosition={currentPosition}
+                onCenter={() => {
+                  if (!currentPosition) return;
+                  sendToMap({
+                    type: "SET_VIEW",
+                    latitude: currentPosition.latitude,
+                    longitude: currentPosition.longitude,
+                    zoom: 16,
+                    follow: true,
+                  });
+                  close();
+                }}
+              />
 
-        {/* Minimizar a ventana flotante (PiP). Visible solo con viaje activo:
-            el propio módulo es no-op si el dispositivo no soporta PiP. */}
-        {hasActiveTrip && isPipAvailable && (
-          <Pressable
-            style={fabStyles.minimizeButton}
-            onPress={() => minimizeToPip()}
-            accessibilityRole="button"
-            accessibilityLabel="Minimizar a ventana flotante"
-          >
-            <Text style={fabStyles.minimizeButtonText}>🗜</Text>
-          </Pressable>
-        )}
+              <Pressable
+                style={styles.fabMenuItem}
+                onPress={() => {
+                  handleRefreshRoute();
+                  close();
+                }}
+                disabled={!currentPosition || tripLoading}
+                accessibilityRole="button"
+                accessibilityLabel="Actualizar ruta"
+              >
+                <Ionicons name="refresh" size={22} color={CustomColors.textDark} />
+              </Pressable>
+
+              {/* Minimizar a ventana flotante (PiP). Visible solo con viaje
+                  activo: el propio módulo es no-op si el dispositivo no
+                  soporta PiP. */}
+              {hasActiveTrip && isPipAvailable && (
+                <Pressable
+                  style={styles.fabMenuItem}
+                  onPress={() => {
+                    minimizeToPip();
+                    close();
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Minimizar a ventana flotante"
+                >
+                  <Ionicons name="contract" size={22} color={CustomColors.textDark} />
+                </Pressable>
+              )}
+
+              {/* ── Opciones ────────────────────────────────── */}
+              {__DEV__ && routeCoordinates.length > 0 && (
+                <SimulationControls
+                  isManualSimulation={isManualSimulation}
+                  onToggle={() => setIsManualSimulation(!isManualSimulation)}
+                />
+              )}
+
+              {__DEV__ && <ManualLocationControls sendToMap={sendToMap} />}
+            </>
+          )}
+        </FabMenu>
 
         <View style={styles.controlsContainer}>
           <MapControls
@@ -558,26 +592,5 @@ const fabStyles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     zIndex: 100,
-  },
-  minimizeButton: {
-    position: "absolute",
-    top: 124,
-    right: 16,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: CustomColors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 8,
-    shadowColor: CustomColors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 4,
-    zIndex: 10,
-  },
-  minimizeButtonText: {
-    fontSize: 20,
-    lineHeight: 24,
   },
 });
