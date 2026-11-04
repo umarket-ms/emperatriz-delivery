@@ -27,13 +27,39 @@ export const LEAFLET_MAP_HTML = `
     var resizeTimer = null;
     window.addEventListener('resize', function() {
       if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(function() { map.invalidateSize(); }, 120);
+      resizeTimer = setTimeout(function() {
+        map.invalidateSize();
+        // Al cambiar de tamaño (entrada a PiP) re-centramos en el conductor,
+        // salvo que el usuario haya movido el mapa manualmente.
+        if (followDriver && courierMarker) {
+          map.setView(courierMarker.getLatLng(), driverZoom());
+        }
+      }, 120);
     });
 
     var routePolylines = [];
     var courierMarker = null;
     var traveledPolyline = null;
     var waypointMarkers = [];
+
+    // ===== Seguimiento del conductor =====================================
+    // Por defecto el mapa permanece centrado en la posición del courier.
+    // Si el usuario interactúa (arrastra o hace zoom), se desactiva el
+    // seguimiento y la vista queda libre; el botón de centrar (SET_VIEW con
+    // follow:true) lo vuelve a activar.
+    var followDriver = true;
+
+    map.on('dragstart', function() { followDriver = false; });
+    map.on('zoomstart', function(e) {
+      // e.originalEvent solo existe en zooms iniciados por el usuario
+      // (rueda, pinch, double-tap); setView/zoomTo programáticos no lo traen.
+      if (e.originalEvent) followDriver = false;
+    });
+
+    function driverZoom() {
+      var z = map.getZoom();
+      return (z === undefined || z === null) ? 15 : z;
+    }
 
     function handleMessage(data) {
       var msg = typeof data === 'string' ? JSON.parse(data) : data;
@@ -76,7 +102,18 @@ export const LEAFLET_MAP_HTML = `
             });
             waypointMarkers.push(marker);
           });
-          map.fitBounds(bounds, { padding: [40, 40] });
+          // Centro por defecto: el conductor (no los puntos de entrega).
+          // - Si aún no hay posición GPS, se ajusta a la ruta como fallback
+          //   (además bounds.isValid() evita el crash "Bounds are not valid"
+          //   cuando la ruta llega vacía).
+          // - Si el usuario movió el mapa, no se toca la vista.
+          if (followDriver) {
+            if (courierMarker) {
+              map.setView(courierMarker.getLatLng(), driverZoom());
+            } else if (bounds.isValid()) {
+              map.fitBounds(bounds, { padding: [40, 40] });
+            }
+          }
           break;
 
         case 'UPDATE_POSITION':
@@ -91,10 +128,26 @@ export const LEAFLET_MAP_HTML = `
             });
             courierMarker = L.marker([msg.latitude, msg.longitude], { icon: icon, zIndexOffset: 0 }).addTo(map);
           }
+          // Mantener el mapa centrado en el conductor en cada actualización
+          // de GPS, salvo que el usuario haya interactuado con el mapa.
+          if (followDriver) {
+            if (map.getZoom() === undefined || map.getZoom() === null) {
+              map.setView([msg.latitude, msg.longitude], 15);
+            } else {
+              map.panTo([msg.latitude, msg.longitude], { animate: true, duration: 0.5 });
+            }
+          }
           break;
 
         case 'SET_VIEW':
-          map.setView([msg.latitude, msg.longitude], msg.zoom || 15);
+          // follow:true = el usuario pidió centrar (botón "centrar en mi
+          // posición") → reactiva el seguimiento. Sin esa bandera solo se
+          // centra si el seguimiento sigue activo: el GPS no debe arrastrar
+          // el mapa si el usuario lo movió manualmente.
+          if (msg.follow === true) followDriver = true;
+          if (followDriver) {
+            map.setView([msg.latitude, msg.longitude], msg.zoom || 15);
+          }
           break;
 
         case 'UPDATE_TRAVELED':

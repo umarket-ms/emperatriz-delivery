@@ -364,6 +364,7 @@ export default function TripMapScreen() {
                 latitude: currentPosition.latitude,
                 longitude: currentPosition.longitude,
                 zoom: 16,
+                follow: true,
               });
             }}
           />
@@ -435,6 +436,7 @@ export default function TripMapScreen() {
               latitude: currentPosition.latitude,
               longitude: currentPosition.longitude,
               zoom: 16,
+              follow: true,
             });
           }}
         />
